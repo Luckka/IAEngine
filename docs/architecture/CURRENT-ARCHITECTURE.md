@@ -143,11 +143,11 @@ The run record is both operational checkpoint and audit document; this is useful
 
 ### VERIFIED IN CODE
 
-`Configuration/ConfigLoader.Load` resolves `ONLINEOS_ORCHESTRATOR_CONFIG`, a direct `appsettings.json`, or the legacy `tools/ai-orchestrator/appsettings.json`; it never falls back to the executable binary directory. It then applies other `ONLINEOS_*` environment overrides only when `Project.Id` is `onlineos-mobile`. Generic option defaults are neutral; the checked-in OnlineOS profile explicitly supplies `app`, `macos`, `OnlineOS-QA`, `b1208`, `developer`, `producao`, and Flutter/Patrol commands. `Project.Composition` records explicit provider/capability names and `EngineCompositionPlan` exposes them without creating providers.
+`Configuration/ConfigLoader.Load` resolves `ONLINEOS_ORCHESTRATOR_CONFIG`, a direct `appsettings.json`, or the legacy `tools/ai-orchestrator/appsettings.json`; it never falls back to the executable binary directory. It then applies other `ONLINEOS_*` environment overrides only when `Project.Id` is `onlineos-mobile`. Generic option defaults are neutral; the checked-in OnlineOS profile explicitly supplies `app`, `macos`, `OnlineOS-QA`, `b1208`, `developer`, `producao`, and Flutter/Patrol commands. `Project.Composition` records explicit provider/capability names; M2 adds `EngineCompositionRuntimeBuilder`, which requires explicit typed registrations and resolves only declared components.
 
 ### UNKNOWN
 
-There is no external schema/versioning/migration mechanism for configuration, no YAML loader, and no project adapter registration mechanism. Whether consumers need runtime plugin discovery or compile-time composition is not defined.
+There is no external schema/versioning/migration mechanism for configuration, no YAML loader, and no CLI input for an external host's runtime registrations. The current executable remains OnlineOS-compatible only for operational commands; external consumers must host the builder in code until a later host/adapter milestone.
 
 ## Divergences and risks
 

@@ -33,9 +33,9 @@ The OnlineOS repository was used as read-only input and was not modified.
 
 ## Known limitations of this baseline
 
-- No Git repository metadata is present in the destination by design. Git-dependent
-  execution and milestone finalization therefore remain intentionally unavailable
-  until a later human-approved workspace/Git decision.
+- The copied source baseline contained no Git repository metadata. This public
+  repository now has its own Git history; consumer-workspace execution and
+  milestone finalization still require an explicit workspace/profile decision.
 - The copied Git workflow still contains OnlineOS-era lifecycle assumptions and
   paths; it is preserved and documented, not generalized in this phase.
 - OnlineOS-specific prompts, policy names, roadmap schema, QA device names, and

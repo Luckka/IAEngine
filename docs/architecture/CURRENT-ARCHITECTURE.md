@@ -17,7 +17,7 @@ Analysis date: 2026-09-21. Scope: this repository only.
 | Check | Result |
 |---|---|
 | Current path | this repository |
-| Git metadata in destination | Absent. `git status` reports `not a git repository`; no Git was initialized. |
+| Git metadata in destination | Public repository Git metadata is present; the copied source baseline originally had none. |
 | `BASELINE.md` | Present; records source branch `remediation/o01-visual-conformity`, commit `724030b2e8fc71c6fc7356f98b676a233eccfaa7`, copy date `2026-09-20`. |
 | `SOURCE-MANIFEST.md` | Present; records copied implementation, tests, configuration, prompts and exclusions. |
 | `COPY-BOUNDARIES.md` | Present; declares the OnlineOS source read-only and destination independently evolvable. |
@@ -153,6 +153,6 @@ There is no external schema/versioning/migration mechanism for configuration, no
 
 - **VERIFIED IN CODE:** README and prompts call the product “OnlineOS”; namespace/assembly is `OnlineOs.AiOrchestrator`; QA and reference code use product-specific names.
 - **VERIFIED IN CODE:** source documentation claims provider interfaces, but those interfaces still expose OnlineOS-derived models and prompts; this is capability isolation, not project isolation.
-- **VERIFIED IN CODE:** the copied Git lifecycle has no destination repository to operate on; `Program.FindRepository` therefore prevents normal CLI execution from this isolated directory until an external workspace/Git decision is made.
+- **VERIFIED IN CODE:** the copied Git lifecycle is still OnlineOS-oriented; the public repository now satisfies repository discovery, but consumer execution remains dependent on an explicit workspace/profile decision.
 - **INFERRED:** the first extraction should characterize and preserve behavior before any namespace, state or prompt changes.
 - **HUMAN DECISION REQUIRED:** whether this baseline should remain a compatibility executable during extraction or become a new Engine host immediately.

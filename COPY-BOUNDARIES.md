@@ -23,8 +23,8 @@ FORBIDDEN:
 The source was inspected only. No source branch, commit, working-tree file,
 configuration, prompt, test, state directory, or generated artifact was changed.
 
-The destination intentionally has no `.git`, no historical `.ai-runs`, and no
-historical `.ai-state`. Any future runtime-generated `.ai-runs` or `.ai-state`
-must be created below the destination only. The copied Git lifecycle code remains
-present for behavior preservation, but its execution requires a later human-approved
-decision about how an independent Git workspace should be provided.
+The copied destination baseline intentionally had no `.git`, no historical
+`.ai-runs`, and no historical `.ai-state`. This public repository now has its own
+Git history; runtime-generated `.ai-runs` or `.ai-state` must still be created below
+the destination only. The copied Git lifecycle code remains present for behavior
+preservation, but consumer execution requires an explicit workspace/profile decision.

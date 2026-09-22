@@ -3,6 +3,9 @@
 This .NET 10 CLI is an isolated baseline of a local, deterministic AI engineering
 orchestrator. It coordinates agents; agents never invoke one another. Git is the
 shared repository state and a human remains the final approval/merge authority.
+It is intended to orchestrate planning, implementation, review, and validation
+across projects and technology stacks with recoverable workflows and deterministic
+quality gates.
 
 The current implementation preserves an OnlineOS compatibility profile while the
 generic runtime composition boundary is still a follow-up. It must not be read as

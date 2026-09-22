@@ -1,0 +1,20 @@
+# Build outputs and intermediate files
+bin/
+obj/
+tests/bin/
+tests/obj/
+
+# Runtime state and local execution artifacts
+.ai-runs/
+.ai-state/
+
+# Local IDE and OS files
+.vs/
+.vscode/
+.idea/
+.DS_Store
+
+# Local environment/configuration overrides
+*.user
+*.suo
+appsettings.Local.json

@@ -18,6 +18,14 @@ public sealed class RoadmapCatalog
         return new RoadmapCatalog(document);
     }
 
+    public static RoadmapCatalog FromMilestone(MilestoneDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var document = new RoadmapDocument { Milestones = [definition] };
+        Validate(document);
+        return new RoadmapCatalog(document);
+    }
+
     public MilestoneDefinition Get(string id) => Document.Milestones.FirstOrDefault(x => x.Id == id)
         ?? throw new InvalidOperationException($"Milestone '{id}' was not found in the roadmap.");
 
@@ -62,11 +70,11 @@ public sealed class RoadmapCatalog
     }
 }
 
-public sealed class RoadmapStateStore(string repositoryRoot)
+public sealed class RoadmapStateStore(string repositoryRoot, string stateDirectory = ".ai-state")
 {
     public string RepositoryRoot { get; } = Path.GetFullPath(repositoryRoot);
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
-    private readonly string path = new WorkspaceBoundary(repositoryRoot).Resolve(".ai-state/roadmap-state.json");
+    private readonly string path = new WorkspaceBoundary(repositoryRoot).Resolve(Path.Combine(stateDirectory, "roadmap-state.json"));
 
     public async Task<MilestoneRuntimeState?> LoadAsync(CancellationToken ct = default)
         => File.Exists(path) ? JsonSerializer.Deserialize<MilestoneRuntimeState>(await File.ReadAllTextAsync(path, ct), JsonOptions) : null;

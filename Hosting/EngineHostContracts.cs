@@ -2,6 +2,7 @@ using OnlineOs.AiOrchestrator.Abstractions;
 using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Reference;
+using OnlineOs.AiOrchestrator.Roadmap;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -37,6 +38,7 @@ public sealed class EngineHostContext
     public string? ExpectedBranch { get; init; }
     public IEngineTaskSource? TaskSource { get; init; }
     public IEngineMilestoneSource? MilestoneSource { get; init; }
+    public string MilestoneStateDirectory { get; init; } = ".ai-state";
 }
 
 public sealed record EngineExecutionResult(
@@ -46,3 +48,14 @@ public sealed record EngineExecutionResult(
     string? FinalDecision,
     bool Succeeded,
     string? FailureReason);
+
+public sealed record EngineMilestoneExecutionResult(
+    string ProjectId,
+    string MilestoneId,
+    MilestoneRuntimeStatus Status,
+    int CompletedTasks,
+    int TotalTasks,
+    bool Succeeded,
+    bool RequiresHumanApproval,
+    string? FailureReason,
+    string StateDirectory);

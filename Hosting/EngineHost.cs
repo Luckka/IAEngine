@@ -2,6 +2,7 @@ using OnlineOs.AiOrchestrator.Abstractions;
 using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Pipeline;
+using OnlineOs.AiOrchestrator.Roadmap;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -86,6 +87,38 @@ public sealed class EngineHost
         return context.MilestoneSource.LoadMilestoneAsync(milestoneId, cancellationToken);
     }
 
+    public async Task<EngineMilestoneExecutionResult> RunMilestoneAsync(
+        string milestoneId,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = await LoadMilestoneAsync(milestoneId, cancellationToken);
+        var runner = CreateMilestoneRunner(definition);
+        return ToMilestoneResult(await runner.RunAsync(milestoneId, cancellationToken));
+    }
+
+    public async Task<EngineMilestoneExecutionResult> ContinueMilestoneAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var activeRun = await context.RunStore.FindActiveAsync(cancellationToken)
+            ?? throw new InvalidOperationException("No active Engine run exists for milestone continuation.");
+        if (string.IsNullOrWhiteSpace(activeRun.MilestoneId))
+            throw new InvalidOperationException("The active Engine run is not associated with a milestone.");
+        var definition = await LoadMilestoneAsync(activeRun.MilestoneId, cancellationToken);
+        var runner = CreateMilestoneRunner(definition);
+        var state = await runner.ContinueAsync(activeRun, cancellationToken)
+            ?? throw new InvalidOperationException("Milestone continuation returned no state.");
+        return ToMilestoneResult(state);
+    }
+
+    public async Task<EngineMilestoneExecutionResult> ApproveMilestoneAsync(
+        string milestoneId,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = await LoadMilestoneAsync(milestoneId, cancellationToken);
+        var runner = CreateMilestoneRunner(definition);
+        return ToMilestoneResult(await runner.ApproveAsync(milestoneId, cancellationToken));
+    }
+
     private async Task<EngineExecutionResult> ExecuteAsync(DevelopmentTask task, bool dryRun, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(task);
@@ -100,6 +133,31 @@ public sealed class EngineHost
             run.FinalDecision,
             succeeded,
             run.LastFailure?.RootCause);
+    }
+
+    private MilestoneRunner CreateMilestoneRunner(RoadmapMilestoneDefinition definition)
+        => new(
+            RoadmapCatalog.FromMilestone(definition),
+            new RoadmapStateStore(context.WorkspaceRoot, context.MilestoneStateDirectory),
+            context.RunStore,
+            orchestrator,
+            output: TextWriter.Null);
+
+    private EngineMilestoneExecutionResult ToMilestoneResult(MilestoneRuntimeState state)
+    {
+        var completed = state.Tasks.Values.Count(task => task.Status == MilestoneTaskStatus.Done);
+        var succeeded = state.Status is MilestoneRuntimeStatus.CompleteAwaitingApproval or MilestoneRuntimeStatus.Approved;
+        var requiresHumanApproval = state.RequiresHumanCheckpoint || state.Status == MilestoneRuntimeStatus.HumanRequired;
+        return new EngineMilestoneExecutionResult(
+            context.ProjectId,
+            state.MilestoneId,
+            state.Status,
+            completed,
+            state.Tasks.Count,
+            succeeded,
+            requiresHumanApproval,
+            state.FailureReason,
+            context.MilestoneStateDirectory);
     }
 
     private static void ValidateContext(EngineHostContext context)

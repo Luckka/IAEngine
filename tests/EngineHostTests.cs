@@ -3,6 +3,8 @@ using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Hosting;
 using OnlineOs.AiOrchestrator.Infrastructure;
 using OnlineOs.AiOrchestrator.Models;
+using OnlineOs.AiOrchestrator.Roadmap;
+using RoadmapDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Tests;
 
@@ -95,6 +97,99 @@ public sealed class EngineHostTests
         }
     }
 
+    [Fact]
+    public async Task GenericConsumerHostRunsAndApprovesMilestoneFromSource()
+    {
+        var workspace = Directory.CreateTempSubdirectory("iaengine-milestone-");
+        try
+        {
+            var host = CreateHost(workspace.FullName, new FakeMilestoneSource(SyntheticMilestone()));
+
+            var completed = await host.RunMilestoneAsync("SYN-MILESTONE");
+            var approved = await host.ApproveMilestoneAsync("SYN-MILESTONE");
+
+            Assert.Equal(MilestoneRuntimeStatus.CompleteAwaitingApproval, completed.Status);
+            Assert.True(completed.Succeeded);
+            Assert.Equal(2, completed.CompletedTasks);
+            Assert.Equal(MilestoneRuntimeStatus.Approved, approved.Status);
+            Assert.True(File.Exists(Path.Combine(workspace.FullName, ".ai-state-host", "roadmap-state.json")));
+        }
+        finally
+        {
+            workspace.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task GenericConsumerHostPreservesHumanRequiredMilestoneState()
+    {
+        var workspace = Directory.CreateTempSubdirectory("iaengine-milestone-");
+        try
+        {
+            var host = CreateHost(workspace.FullName, new FakeMilestoneSource(SyntheticMilestone()), reviewPasses: false);
+
+            var result = await host.RunMilestoneAsync("SYN-MILESTONE");
+
+            Assert.Equal(MilestoneRuntimeStatus.HumanRequired, result.Status);
+            Assert.False(result.Succeeded);
+            Assert.True(result.RequiresHumanApproval);
+            Assert.Equal(0, result.CompletedTasks);
+        }
+        finally
+        {
+            workspace.Delete(true);
+        }
+    }
+
+    private static EngineHost CreateHost(string workspace, IEngineMilestoneSource source, bool reviewPasses = true)
+    {
+        var options = Options(workspace);
+        options = new AppOptions
+        {
+            Project = new ProjectProfileOptions { Id = "generic-consumer", WorkspaceRoot = workspace, Stack = "dotnet" },
+            Orchestrator = new OrchestratorOptions { RunsDirectory = ".ai-runs-host", EngineeringRemediationCycles = reviewPasses ? 5 : 0, ProcessTimeoutSeconds = 30 },
+            ReviewPolicy = options.ReviewPolicy
+        };
+        var composition = new EngineCompositionPlan(
+            "generic-consumer", false, false, false, false, false, [],
+            ["local-router", "local-implementation", "local-review"], [], ["local-policy"], ["validation"]);
+        return EngineHost.Create(new EngineHostContext
+        {
+            ProjectId = "generic-consumer",
+            WorkspaceRoot = workspace,
+            Options = options,
+            Composition = composition,
+            Components = new("local-router", "local-implementation", "local-review", "validation"),
+            RegisterComponents = builder => builder
+                .RegisterProvider<ITaskRouter>("local-router", () => new FakeRouter())
+                .RegisterProvider<IImplementationAgent>("local-implementation", () => new FakeImplementation())
+                .RegisterProvider<IReviewAgent>("local-review", () => new FakeReviewer(reviewPasses))
+                .RegisterPolicy("local-policy", () => new NamedProjectPolicyComponent("local-policy"))
+                .RegisterCapability<IValidationRunner>("validation", () => new FakeValidation()),
+            RunStore = new RunStore(workspace, ".ai-runs-host"),
+            Git = new FakeGit(workspace),
+            MilestoneSource = source,
+            MilestoneStateDirectory = ".ai-state-host"
+        });
+    }
+
+    private static RoadmapDefinition SyntheticMilestone() => new()
+    {
+        Id = "SYN-MILESTONE",
+        Title = "Synthetic generic milestone",
+        Tasks =
+        [
+            new() { Id = "SYN-001", Title = "Load local fixture", Description = "Load a synthetic fixture." },
+            new() { Id = "SYN-002", Title = "Explain local result", Description = "Produce a deterministic explanation.", DependsOn = ["SYN-001"] }
+        ]
+    };
+
+    private sealed class FakeMilestoneSource(RoadmapDefinition definition) : IEngineMilestoneSource
+    {
+        public Task<RoadmapDefinition> LoadMilestoneAsync(string milestoneId, CancellationToken cancellationToken = default)
+            => Task.FromResult(definition);
+    }
+
     private static AppOptions Options(string workspace) => new()
     {
         Project = new ProjectProfileOptions { Id = "infra-sentinel", WorkspaceRoot = workspace, Stack = "dotnet" },
@@ -120,10 +215,12 @@ public sealed class EngineHostTests
             => Task.FromResult(new ImplementationResult(true, "local fake remediation", []));
     }
 
-    private sealed class FakeReviewer : IReviewAgent
+    private sealed class FakeReviewer(bool passes = true) : IReviewAgent
     {
         public Task<ReviewResult> ReviewAsync(DevelopmentTask task, EngineeringProfile engineering, string gitDiff, CancellationToken cancellationToken = default)
-            => Task.FromResult(new ReviewResult(ReviewDecision.Pass, [], "local fake review"));
+            => Task.FromResult(passes
+                ? new ReviewResult(ReviewDecision.Pass, [], "local fake review")
+                : new ReviewResult(ReviewDecision.Fail, [new ReviewFinding(FindingSeverity.High, "synthetic", "1", "controlled failure", "test", "human action")], "controlled failure"));
     }
 
     private sealed class FakeValidation : IValidationRunner

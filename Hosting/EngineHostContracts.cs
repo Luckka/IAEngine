@@ -1,0 +1,48 @@
+using OnlineOs.AiOrchestrator.Abstractions;
+using OnlineOs.AiOrchestrator.Configuration;
+using OnlineOs.AiOrchestrator.Models;
+using OnlineOs.AiOrchestrator.Reference;
+using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
+
+namespace OnlineOs.AiOrchestrator.Hosting;
+
+public interface IEngineTaskSource
+{
+    Task<DevelopmentTask> LoadTaskAsync(string taskId, CancellationToken cancellationToken = default);
+}
+
+public interface IEngineMilestoneSource
+{
+    Task<RoadmapMilestoneDefinition> LoadMilestoneAsync(string milestoneId, CancellationToken cancellationToken = default);
+}
+
+public sealed record EngineHostComponentNames(
+    string RouterProvider,
+    string ImplementationProvider,
+    string ReviewProvider,
+    string ValidationCapability);
+
+public sealed class EngineHostContext
+{
+    public required string ProjectId { get; init; }
+    public required string WorkspaceRoot { get; init; }
+    public required AppOptions Options { get; init; }
+    public required IProjectComposition Composition { get; init; }
+    public required Action<EngineCompositionRuntimeBuilder> RegisterComponents { get; init; }
+    public required EngineHostComponentNames Components { get; init; }
+    public required IRunStore RunStore { get; init; }
+    public required IGitService Git { get; init; }
+    public IProgressReporter? ProgressReporter { get; init; }
+    public IReferenceInspector? ReferenceInspector { get; init; }
+    public string? ExpectedBranch { get; init; }
+    public IEngineTaskSource? TaskSource { get; init; }
+    public IEngineMilestoneSource? MilestoneSource { get; init; }
+}
+
+public sealed record EngineExecutionResult(
+    string ProjectId,
+    string RunId,
+    WorkflowState State,
+    string? FinalDecision,
+    bool Succeeded,
+    string? FailureReason);

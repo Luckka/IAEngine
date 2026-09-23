@@ -35,26 +35,69 @@ if (configurationErrors.Count > 0)
     return 2;
 }
 var composition = EngineComposition.Create(options);
-if (!composition.IsOnlineOsCompatibility && args.Length > 0 && args[0] is not "help" and not "--help" and not "-h")
+var helpRequested = args.Length == 0 || args[0] is "help" or "--help" or "-h";
+if (!composition.IsOnlineOsCompatibility && !helpRequested)
 {
-    Console.Error.WriteLine($"Project profile '{options.Project.Id}' has no registered external provider composition; select an explicit compatibility profile before running commands.");
+    Console.Error.WriteLine($"Project profile '{options.Project.Id}' has no host registration for its declared runtime composition. " +
+        "A consumer must register its providers, validators, policies, and capabilities explicitly before running commands.");
     return 2;
 }
-IProcessRunner processes = new ProcessRunner();
-using var http = new HttpClient { BaseAddress = new Uri(options.Ollama.BaseUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(options.Ollama.TimeoutSeconds) };
-ITaskRouter router = new OllamaTaskRouter(http, options.Ollama);
-IGitService git = new GitService(processes, repository, options.Git);
-var timeout = TimeSpan.FromSeconds(options.Orchestrator.ProcessTimeoutSeconds);
-var preflight = new PreflightService(processes, router, git, options, repository);
-IReferenceInspector referenceInspector = new MonolithReferenceInspector(processes, repository, options.Reference);
-var validationRunner = new ValidationRunner(processes, options.Validation, repository, timeout);
-var gitWorkflow = new GitWorkflowManager(processes, repository, options.Git, validationRunner);
 
-if (args.Length == 0 || args[0] is "help" or "--help" or "-h")
+if (helpRequested)
 {
     PrintUsage();
     return 0;
 }
+
+IProcessRunner processes = new ProcessRunner();
+using var http = new HttpClient { BaseAddress = new Uri(options.Ollama.BaseUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(options.Ollama.TimeoutSeconds) };
+IGitService git = new GitService(processes, repository, options.Git);
+var timeout = TimeSpan.FromSeconds(options.Orchestrator.ProcessTimeoutSeconds);
+var onlineOsRouter = new OllamaTaskRouter(http, options.Ollama);
+var onlineOsValidation = new ValidationRunner(processes, options.Validation, repository, timeout);
+var onlineOsReference = new MonolithReferenceInspector(processes, repository, options.Reference);
+var onlineOsGitWorkflow = new GitWorkflowManager(processes, repository, options.Git, onlineOsValidation);
+var onlineOsQa = new PatrolE2ETestRunner(
+    processes,
+    new PatrolDeviceManager(processes, options.Qa, repository),
+    options.Qa,
+    repository,
+    new AdbDeviceArtifactCapture(processes, options.Qa, repository),
+    new AdbVideoCapture(processes, options.Qa, repository),
+    new PatrolExecutableResolver(options.Qa, repository),
+    Console.WriteLine);
+
+var runtimeBuilder = composition.CreateRuntimeBuilder();
+runtimeBuilder.RegisterProvider<ITaskRouter>("ollama", () => onlineOsRouter);
+runtimeBuilder.RegisterProvider<IImplementationAgent>("claude", () => new ClaudeAgent(processes, options.Claude, repository, timeout, options.Orchestrator.RemediationContext));
+runtimeBuilder.RegisterProvider<IReviewAgent>("codex", () => new CodexAgent(processes, options.Codex, repository, timeout));
+foreach (var validator in options.Project.Validators)
+    runtimeBuilder.RegisterValidator<IValidationRunner>(validator, () => onlineOsValidation);
+runtimeBuilder.RegisterCapability<IValidationRunner>("validation", () => onlineOsValidation);
+runtimeBuilder.RegisterCapability<IE2ETestRunner>("qa", () => onlineOsQa);
+runtimeBuilder.RegisterCapability<IReferenceInspector>("reference-inspection", () => onlineOsReference);
+runtimeBuilder.RegisterCapability<IGitWorkflowManager>("git-workflow", () => onlineOsGitWorkflow);
+foreach (var policy in options.Project.Policies)
+    runtimeBuilder.RegisterPolicy(policy, () => new NamedProjectPolicyComponent(policy));
+
+EngineCompositionRuntime resolvedComposition;
+try
+{
+    resolvedComposition = runtimeBuilder.Build();
+}
+catch (CompositionResolutionException exception)
+{
+    Console.Error.WriteLine($"Runtime composition rejected before providers or external commands were started: {exception.Message}");
+    return 2;
+}
+
+ITaskRouter router = resolvedComposition.ResolveProvider<ITaskRouter>("ollama");
+var implementationAgent = resolvedComposition.ResolveProvider<IImplementationAgent>("claude");
+var reviewAgent = resolvedComposition.ResolveProvider<IReviewAgent>("codex");
+IReferenceInspector referenceInspector = resolvedComposition.ResolveCapability<IReferenceInspector>("reference-inspection");
+var validationRunner = resolvedComposition.ResolveCapability<IValidationRunner>("validation");
+var gitWorkflow = resolvedComposition.ResolveCapability<IGitWorkflowManager>("git-workflow");
+var preflight = new PreflightService(processes, router, git, options, repository);
 
 if (args[0] == "preflight")
 {
@@ -101,9 +144,7 @@ if (args[0] == "qa")
     var qaRequest = new E2ETestRequest(qaRunId, null, args.Length > 2 && profile == E2EProfile.Milestone ? args[2] : null,
         profile, Device: options.Qa.Device, CaptureScreenshots: options.Qa.CaptureScreenshots,
         RecordVideo: options.Qa.EnableVideoCapture && profile != E2EProfile.Fast);
-    var qaRunner = new PatrolE2ETestRunner(processes, new PatrolDeviceManager(processes, options.Qa, repository), options.Qa, repository,
-        new AdbDeviceArtifactCapture(processes, options.Qa, repository), new AdbVideoCapture(processes, options.Qa, repository),
-        new PatrolExecutableResolver(options.Qa, repository), Console.WriteLine);
+    var qaRunner = resolvedComposition.ResolveCapability<IE2ETestRunner>("qa");
     E2ETestResult qaResult;
     if (profile == E2EProfile.Milestone)
     {
@@ -172,9 +213,7 @@ if (args[0] == "milestone")
     }
     using IProgressReporter milestoneProgress = new ConsoleProgressReporter(Console.Out);
     var milestoneOrchestrator = new Orchestrator(
-        router, new ClaudeAgent(processes, options.Claude, repository, timeout, options.Orchestrator.RemediationContext),
-        new ValidationRunner(processes, options.Validation, repository, timeout),
-        new CodexAgent(processes, options.Codex, repository, timeout), git, commandStore,
+        router, implementationAgent, validationRunner, reviewAgent, git, commandStore,
         new ReviewPolicy(options.ReviewPolicy), new WorkflowStateMachine(), options,
         milestoneProgress, router as IFailureDiagnoser, referenceInspector, gitDefinition.Branch);
     var milestoneRunner = new MilestoneRunner(roadmap, stateStore, commandStore, milestoneOrchestrator, gitWorkflow, Console.Out);
@@ -259,8 +298,8 @@ if (args[0] == "run" && args.Length >= 2 && args[1].Equals("retry", StringCompar
     using IProgressReporter retryProgress = new ConsoleProgressReporter(Console.Out);
     var retryBranch = await git.GetBranchAsync();
     retryProgress.PrintHeader(run.RunId, run.Task.Title, retryBranch);
-    var retryOrchestrator = new Orchestrator(router, new ClaudeAgent(processes, options.Claude, repository, timeout, options.Orchestrator.RemediationContext), validationRunner,
-        new CodexAgent(processes, options.Codex, repository, timeout), git, commandStore, new ReviewPolicy(options.ReviewPolicy),
+    var retryOrchestrator = new Orchestrator(router, implementationAgent, validationRunner,
+        reviewAgent, git, commandStore, new ReviewPolicy(options.ReviewPolicy),
         new WorkflowStateMachine(), options, retryProgress, router as IFailureDiagnoser, referenceInspector, run.Git?.Branch);
     try
     {
@@ -299,9 +338,9 @@ if (args[0] == "continue")
     resumeProgress.StartStage($"Resuming {active.ResumeStage ?? active.CurrentStage ?? active.State}");
     var resumeOrchestrator = new Orchestrator(
         router,
-        new ClaudeAgent(processes, options.Claude, repository, timeout, options.Orchestrator.RemediationContext),
-        new ValidationRunner(processes, options.Validation, repository, timeout),
-        new CodexAgent(processes, options.Codex, repository, timeout),
+        implementationAgent,
+        validationRunner,
+        reviewAgent,
         git,
         commandStore,
         new ReviewPolicy(options.ReviewPolicy),
@@ -366,9 +405,9 @@ if (!dryRun)
 
 var orchestrator = new Orchestrator(
     router,
-    new ClaudeAgent(processes, options.Claude, repository, timeout, options.Orchestrator.RemediationContext),
-    new ValidationRunner(processes, options.Validation, repository, timeout),
-    new CodexAgent(processes, options.Codex, repository, timeout),
+    implementationAgent,
+    validationRunner,
+    reviewAgent,
     git,
     new RunStore(repository, options.Orchestrator.RunsDirectory),
     new ReviewPolicy(options.ReviewPolicy),
@@ -423,7 +462,7 @@ static void PrintUsage()
     Console.WriteLine("  dotnet run -- qa report <RUN_ID>");
 }
 
-static async Task<E2ETestResult> RunQaWithRetriesAsync(PatrolE2ETestRunner runner, E2ETestRequest request, QaOptions options)
+static async Task<E2ETestResult> RunQaWithRetriesAsync(IE2ETestRunner runner, E2ETestRequest request, QaOptions options)
 {
     var result = await runner.RunAsync(request);
     var attempts = 0;

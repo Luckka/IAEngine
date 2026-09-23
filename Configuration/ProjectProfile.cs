@@ -97,6 +97,8 @@ public static class ProjectProfileValidator
         foreach (var capability in new[] { "qa", "reference-inspection", "git-workflow" })
             if (!options.Project.Composition.Capabilities.Contains(capability, StringComparer.OrdinalIgnoreCase))
                 errors.Add($"OnlineOS compatibility profile requires capability '{capability}' in Project.Composition.Capabilities.");
+        if (!options.Project.Composition.Capabilities.Contains("validation", StringComparer.OrdinalIgnoreCase))
+            errors.Add("OnlineOS compatibility profile requires capability 'validation' in Project.Composition.Capabilities.");
         return errors;
     }
 }
@@ -124,6 +126,12 @@ public sealed record EngineCompositionPlan(
     IReadOnlyList<string> Policies,
     IReadOnlyList<string> Capabilities) : IProjectComposition;
 
+public static class ProjectCompositionExtensions
+{
+    public static EngineCompositionRuntimeBuilder CreateRuntimeBuilder(this IProjectComposition composition)
+        => new(composition);
+}
+
 public static class EngineComposition
 {
     public static EngineCompositionPlan Create(AppOptions options)
@@ -132,7 +140,7 @@ public static class EngineComposition
         return new EngineCompositionPlan(
             options.Project.Id,
             onlineOs,
-            options.Project.Validators.Count > 0,
+            options.Project.Validators.Count > 0 || options.Project.Composition.Capabilities.Contains("validation", StringComparer.OrdinalIgnoreCase),
             options.Project.Composition.Capabilities.Contains("qa", StringComparer.OrdinalIgnoreCase),
             options.Project.Composition.Capabilities.Contains("reference-inspection", StringComparer.OrdinalIgnoreCase),
             onlineOs,

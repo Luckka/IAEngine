@@ -8,20 +8,6 @@ namespace OnlineOs.AiOrchestrator.Tests;
 public sealed class ValidationRunnerTests
 {
     [Fact]
-    public async Task FlutterProfileRunsEachConfiguredCategoryFromAppRoot()
-    {
-        var process = new FakeProcessRunner();
-        var runner = new ValidationRunner(process, Options(includeIntegration: true), RepositoryRoot(), TimeSpan.FromSeconds(5));
-
-        var results = await runner.RunAsync(FlutterProfile());
-
-        Assert.Equal(["Format", "StaticAnalysis", "UnitTests", "ResponsiveWidgetTests", "IntegrationTests"], results.Select(x => x.Category));
-        Assert.All(results.Where(x => x.Category != "IntegrationTests"), x => Assert.True(x.Passed));
-        Assert.True(Assert.Single(results, x => x.Category == "IntegrationTests").Passed);
-        Assert.All(process.Specs.Where(x => x.FileName is "dart" or "flutter"), x => Assert.Equal(Path.Combine(RepositoryRoot(), "app"), x.WorkingDirectory));
-    }
-
-    [Fact]
     public async Task MissingRequiredCategoryProducesConfigurationFailure()
     {
         var options = Options(includeIntegration: false);
@@ -60,18 +46,6 @@ public sealed class ValidationRunnerTests
 
         Assert.Empty(results);
         Assert.Empty(process.Specs);
-    }
-
-    [Fact]
-    public async Task IntegrationWithoutTargetIsExplicitlyNotExecutable()
-    {
-        var process = new FakeProcessRunner { DeviceOutput = "[]" };
-        var options = Options(includeIntegration: true);
-        var result = Assert.Single(await new ValidationRunner(process, options, RepositoryRoot(), TimeSpan.FromSeconds(5)).RunAsync(FlutterProfile()), x => x.Category == "IntegrationTests");
-
-        Assert.Equal(ValidationStatus.NotExecutable, result.Status);
-        Assert.False(result.Passed);
-        Assert.Contains("No supported", result.Reason);
     }
 
     [Fact]

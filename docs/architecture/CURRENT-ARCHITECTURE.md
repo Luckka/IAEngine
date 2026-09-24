@@ -29,12 +29,14 @@ Analysis date: 2026-09-21. Scope: this repository only.
 
 ### VERIFIED IN CODE — validation result
 
-`dotnet test tests/OnlineOs.AiOrchestrator.Tests.csproj --no-restore` completed with 170 tests: 168 passed and 2 failed. The failures are existing baseline behavior, not changed by this analysis:
-
-1. `tests/ValidationRunnerTests.cs:11-21` — `FlutterProfileRunsEachConfiguredCategoryFromAppRoot` expects the integration result to pass, but the fake device probe output does not contain the configured `macos` target, so `Pipeline/ValidationRunner.cs:77-85` returns `NotExecutable`.
-2. `tests/ValidationRunnerTests.cs:66-75` — `IntegrationWithoutTargetIsExplicitlyNotExecutable` expects `NotExecutable`, but `Pipeline/ValidationRunner.cs:74-75` returns `NotApplicable` when `integration_test` is absent.
-
-These are recorded as behavior/documentation divergence. No source or test was modified.
+The historical M1 baseline was 170 tests: 168 passed and 2 failed. The failures
+were existing behavior at the time, not changed by that analysis. During M4,
+they were classified as OnlineOS consumer tests and removed from the main Engine
+suite; the current suite result is recorded in `M1-VALIDATION.md`. The two
+historical cases were `FlutterProfileRunsEachConfiguredCategoryFromAppRoot`
+and `IntegrationWithoutTargetIsExplicitlyNotExecutable`; their required Flutter
+application tree is outside this repository and their tests are no longer part
+of the main Engine suite.
 
 ## Component inventory
 

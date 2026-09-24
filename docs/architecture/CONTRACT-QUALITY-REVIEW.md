@@ -36,5 +36,7 @@ Replacing `RoadmapStateStore` with a generic persistence interface and introduci
 an explicit outcome enum would change the public contract. Those decisions require
 a second consumer or a reviewed compatibility plan and are intentionally deferred.
 
-The existing two Flutter characterization failures remain unrelated to this
-review: the isolated Engine checkout has no `app/integration_test` Flutter tree.
+The two Flutter characterization tests were subsequently classified as
+OnlineOS-consumer tests and removed from the main Engine suite in M4. The
+isolated Engine checkout still has no `app/integration_test` Flutter tree, and
+the OnlineOS repository remains unchanged.

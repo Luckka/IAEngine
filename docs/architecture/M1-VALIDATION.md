@@ -1,9 +1,11 @@
 # M1 — Validation
 
-## Baseline
+## Historical baseline
 
-- **VERIFIED IN CODE:** 170 tests were recorded before M1: 168 passed and 2 failed.
-- The two failures are the existing `ValidationRunnerTests` cases documented in `CURRENT-ARCHITECTURE.md`; neither test was changed.
+- **HISTORICAL:** 170 tests were recorded before M1: 168 passed and 2 failed.
+- The two failures were the `ValidationRunnerTests` cases documented below. They
+  were later classified as OnlineOS/Flutter consumer tests and removed from the
+  Engine suite during M4; their expectations were not weakened.
 
 ## M1 additions
 
@@ -22,9 +24,9 @@
 - no-provider generic composition planning.
 - explicit provider/capability registration and configuration-path precedence.
 
-Final execution after the M1 changes: **180 total, 178 passed, 2 failed**. The ten
-new M1 tests passed. The two failures are the same baseline failures, with no
-change to their source tests or to `ValidationRunner`:
+Final execution after the M1 changes was **180 total, 178 passed, 2 failed**.
+That is a historical M1 result, not the current M4 result. The ten new M1 tests
+passed. The two historical failures were:
 
 1. `FlutterProfileRunsEachConfiguredCategoryFromAppRoot` expects the fake device
    probe to make the integration result pass, but the current result is
@@ -32,7 +34,7 @@ change to their source tests or to `ValidationRunner`:
 2. `IntegrationWithoutTargetIsExplicitlyNotExecutable` expects `NotExecutable`,
    but the current result is `NotApplicable` when `integration_test` is absent.
 
-## Required commands
+## Required commands (historical M1 record)
 
 The following were run in the Engine destination only:
 
@@ -41,6 +43,14 @@ The following were run in the Engine destination only:
 
 - `dotnet build`: passed, 0 warnings, 0 errors.
 - `dotnet test tests/OnlineOs.AiOrchestrator.Tests.csproj`: 180 total, 178 passed, 2 failed (the documented baseline cases above).
+
+## M4 disposition
+
+The two tests were removed from the main Engine suite because they require the
+OnlineOS Flutter application tree (`app/` and `integration_test/`), which is not
+part of this repository. The current M4 suite is green: 188 passed, 0 failed.
+The compatibility behavior remains documented as adapter/consumer work in
+`TECHNOLOGY-BOUNDARY.md`; the OnlineOS repository was not modified.
 
 ## Scope limitations
 

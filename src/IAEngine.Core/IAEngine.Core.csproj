@@ -24,8 +24,6 @@
     <Compile Include="../../Infrastructure/ProgressReporter.cs" Link="Infrastructure/ProgressReporter.cs" />
     <Compile Include="../../Infrastructure/RunStore.cs" Link="Infrastructure/RunStore.cs" />
     <Compile Include="../../Infrastructure/WorkspaceBoundary.cs" Link="Infrastructure/WorkspaceBoundary.cs" />
-    <Compile Include="../../Models/DeviceArtifactModels.cs" Link="Models/DeviceArtifactModels.cs" />
-    <Compile Include="../../Models/E2EModels.cs" Link="Models/E2EModels.cs" />
     <Compile Include="../../Models/WorkflowModels.cs" Link="Models/WorkflowModels.cs" />
     <Compile Include="../../Pipeline/FailureDiagnosis.cs" Link="Pipeline/FailureDiagnosis.cs" />
     <Compile Include="../../Pipeline/GitWorkflowManager.cs" Link="Pipeline/GitWorkflowManager.cs" />

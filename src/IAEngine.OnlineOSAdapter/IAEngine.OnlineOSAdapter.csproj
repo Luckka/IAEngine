@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../../Models/DeviceArtifactModels.cs" Link="Models/DeviceArtifactModels.cs" />
+    <Compile Include="../../Models/E2EModels.cs" Link="Models/E2EModels.cs" />
     <Compile Include="../../Agents/ClaudeAgent.cs" Link="Agents/ClaudeAgent.cs" />
     <Compile Include="../../Agents/CodexAgent.cs" Link="Agents/CodexAgent.cs" />
     <Compile Include="../../Agents/OllamaTaskRouter.cs" Link="Agents/OllamaTaskRouter.cs" />

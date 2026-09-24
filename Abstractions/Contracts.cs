@@ -34,14 +34,6 @@ public interface IValidationRunner
     Task<IReadOnlyList<ValidationResult>> RunAsync(EngineeringProfile engineering, CancellationToken cancellationToken = default)
         => RunAsync(cancellationToken);
 }
-public interface IE2ETestRunner
-{
-    Task<E2ETestResult> RunAsync(E2ETestRequest request, CancellationToken cancellationToken = default);
-}
-public interface IE2EDeviceManager
-{
-    Task<E2EDeviceResult> EnsureReadyAsync(E2ETestRequest request, CancellationToken cancellationToken = default);
-}
 public interface IGitService
 {
     Task<string> GetRootAsync(CancellationToken cancellationToken = default);

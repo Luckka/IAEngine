@@ -8,6 +8,7 @@ using OnlineOs.AiOrchestrator.Pipeline;
 using OnlineOs.AiOrchestrator.Roadmap;
 using OnlineOs.AiOrchestrator.Reference;
 using OnlineOs.AiOrchestrator.Hosting;
+using OnlineOs.AiOrchestrator.Adapters;
 
 var jsonOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
 var toolDirectory = AppContext.BaseDirectory;
@@ -218,7 +219,7 @@ if (args[0] == "milestone")
         router, implementationAgent, validationRunner, reviewAgent, git, commandStore,
         new ReviewPolicy(options.ReviewPolicy), new WorkflowStateMachine(), options,
         milestoneProgress, router as IFailureDiagnoser, referenceContextProvider, gitDefinition.Branch);
-    var milestoneRunner = new MilestoneRunner(roadmap, stateStore, commandStore, milestoneOrchestrator, gitWorkflow, Console.Out);
+    var milestoneRunner = new MilestoneRunner(roadmap, stateStore, commandStore, milestoneOrchestrator, gitWorkflow, Console.Out, taskContextProvider: new OnlineOsMilestoneTaskContextProvider());
     try
     {
         if (args[1].Equals("approve", StringComparison.OrdinalIgnoreCase))
@@ -354,7 +355,7 @@ if (args[0] == "continue")
     RunRecord resumed;
     if (active.MilestoneId is not null)
     {
-        var milestoneRunner = new MilestoneRunner(RoadmapCatalog.Load(roadmapPath), new RoadmapStateStore(repository), commandStore, resumeOrchestrator, gitWorkflow, Console.Out);
+        var milestoneRunner = new MilestoneRunner(RoadmapCatalog.Load(roadmapPath), new RoadmapStateStore(repository), commandStore, resumeOrchestrator, gitWorkflow, Console.Out, taskContextProvider: new OnlineOsMilestoneTaskContextProvider());
         await milestoneRunner.ContinueAsync(active);
         resumed = active;
     }

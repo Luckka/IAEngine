@@ -16,3 +16,9 @@ public interface IMilestoneTaskGate
 }
 
 public sealed record MilestoneGateResult(bool Passed, string Code, IReadOnlyList<string> Missing);
+
+/// <summary>Optional consumer-owned task classification for milestone compilation.</summary>
+public interface IMilestoneTaskContextProvider
+{
+    IReadOnlyList<string> GetDomains(MilestoneDefinition milestone, RoadmapTaskDefinition task);
+}

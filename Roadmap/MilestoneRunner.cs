@@ -12,7 +12,8 @@ public sealed class MilestoneRunner(
     Orchestrator orchestrator,
     IGitWorkflowManager? gitWorkflow = null,
     TextWriter? output = null,
-    IMilestoneTaskGate? taskGate = null)
+    IMilestoneTaskGate? taskGate = null,
+    IMilestoneTaskContextProvider? taskContextProvider = null)
 {
     private TextWriter Output { get; } = output ?? TextWriter.Null;
 
@@ -205,10 +206,11 @@ public sealed class MilestoneRunner(
             throw new InvalidOperationException($"Milestone {definition.Id} is blocked until checkpoint approval for {prior.Id}.");
     }
 
-    private static DevelopmentTask CompileTask(MilestoneDefinition milestone, RoadmapTaskDefinition task, MilestoneRuntimeState state)
+    private DevelopmentTask CompileTask(MilestoneDefinition milestone, RoadmapTaskDefinition task, MilestoneRuntimeState state)
     {
         var completed = milestone.Tasks.Where(x => state.Tasks.TryGetValue(x.Id, out var runtime) && runtime.Status == MilestoneTaskStatus.Done).Select(x => $"{x.Id}: DONE").ToArray();
         var description = $"Milestone {milestone.Id} — {milestone.Title}. Task {task.Id} — {task.Title}.\n{task.Description}\n\nScope boundaries: implement only confirmed requirements; do not invent API or backend rules; do not implement future milestone scope.\nCompleted dependencies: {(completed.Length == 0 ? "none" : string.Join(", ", completed))}";
-        return new DevelopmentTask(task.Id, task.Title, description, Domains: ["milestone", "flutter"], Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria);
+        var domains = taskContextProvider?.GetDomains(milestone, task) ?? ["milestone"];
+        return new DevelopmentTask(task.Id, task.Title, description, Domains: domains, Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria);
     }
 }

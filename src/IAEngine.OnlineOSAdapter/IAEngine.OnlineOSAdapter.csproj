@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>OnlineOs.AiOrchestrator</RootNamespace>
+    <AssemblyName>IAEngine.OnlineOSAdapter</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IAEngine.Core/IAEngine.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Agents/ClaudeAgent.cs" Link="Agents/ClaudeAgent.cs" />
+    <Compile Include="../../Agents/CodexAgent.cs" Link="Agents/CodexAgent.cs" />
+    <Compile Include="../../Agents/OllamaTaskRouter.cs" Link="Agents/OllamaTaskRouter.cs" />
+    <Compile Include="../../Pipeline/AdbDeviceArtifactCapture.cs" Link="Pipeline/AdbDeviceArtifactCapture.cs" />
+    <Compile Include="../../Pipeline/AdbVideoCapture.cs" Link="Pipeline/AdbVideoCapture.cs" />
+    <Compile Include="../../Pipeline/EngineeringStandardsPolicy.cs" Link="Pipeline/EngineeringStandardsPolicy.cs" />
+    <Compile Include="../../Pipeline/PatrolDeviceManager.cs" Link="Pipeline/PatrolDeviceManager.cs" />
+    <Compile Include="../../Pipeline/PatrolE2ETestRunner.cs" Link="Pipeline/PatrolE2ETestRunner.cs" />
+    <Compile Include="../../Pipeline/PatrolExecutableResolver.cs" Link="Pipeline/PatrolExecutableResolver.cs" />
+    <Compile Include="../../Pipeline/PatrolTestSelector.cs" Link="Pipeline/PatrolTestSelector.cs" />
+    <Compile Include="../../Pipeline/PreflightService.cs" Link="Pipeline/PreflightService.cs" />
+    <Compile Include="../../Pipeline/PrototypeEvidenceGate.cs" Link="Pipeline/PrototypeEvidenceGate.cs" />
+    <Compile Include="../../Pipeline/QaReportWriter.cs" Link="Pipeline/QaReportWriter.cs" />
+    <Compile Include="../../Pipeline/ValidationRunner.cs" Link="Pipeline/ValidationRunner.cs" />
+    <Compile Include="../../Pipeline/VisualConformityReviewGate.cs" Link="Pipeline/VisualConformityReviewGate.cs" />
+    <Compile Include="../../Reference/ReferenceInspection.cs" Link="Reference/ReferenceInspection.cs" />
+  </ItemGroup>
+</Project>

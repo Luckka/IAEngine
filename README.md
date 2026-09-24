@@ -7,9 +7,22 @@ It is intended to orchestrate planning, implementation, review, and validation
 across projects and technology stacks with recoverable workflows and deterministic
 quality gates.
 
-The current implementation preserves an OnlineOS compatibility profile while the
-generic runtime composition boundary is still a follow-up. It must not be read as
-an already-complete adapter for arbitrary consumer projects.
+The current implementation preserves an OnlineOS compatibility profile while also
+providing a local `IAEngine.Core` library. The compatibility executable composes
+`IAEngine.Core` with `IAEngine.OnlineOSAdapter`; generic consumers should reference
+the Core project directly. This is a local source boundary, not a published package
+or stable distribution contract.
+
+## Local project boundaries
+
+- `src/IAEngine.Core` — generic host, composition, orchestration, state, milestones,
+  persistence mechanics and contracts.
+- `src/IAEngine.OnlineOSAdapter` — Flutter, Patrol, ADB, providers, reference
+  inspection and historical OnlineOS compatibility behavior.
+- `OnlineOs.AiOrchestrator.csproj` — compatibility CLI/composition root.
+
+InfraSentinel consumes `src/IAEngine.Core/IAEngine.Core.csproj` through a local
+`ProjectReference`. No NuGet package is created or published in this milestone.
 
 ## Architecture
 

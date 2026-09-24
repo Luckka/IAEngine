@@ -1,6 +1,6 @@
 # M6 — Local Core Library Separation
 
-Status: **In progress**
+Status: **In progress — local assembly separation validated; residual compatibility surface remains**
 
 ## Baseline
 
@@ -53,6 +53,32 @@ configuration or provider behavior remains outside Core. The InfraSentinel
 consumer will reference Core only after its required host contracts compile and
 its existing local tests remain green.
 
+## Current implementation
+
+- `src/IAEngine.Core/IAEngine.Core.csproj` is a library containing the generic
+  host, composition, orchestration, state, milestones, persistence and contracts.
+- `src/IAEngine.OnlineOSAdapter/IAEngine.OnlineOSAdapter.csproj` contains the
+  current provider, Flutter/Patrol/ADB, reference and compatibility code.
+- `OnlineOs.AiOrchestrator.csproj` remains the compatibility executable and
+  references Core plus the adapter.
+- `tests/IAEngine.Core.Tests` runs against Core alone and proves local fake host
+  execution.
+- InfraSentinel now references `IAEngine.Core.csproj`, never the executable or
+  adapter.
+
+## Residual compatibility surface
+
+The Core assembly still contains historical fields and configuration types whose
+names predate M6, including provider-specific failure categories, Flutter flags
+inside `EngineeringProfile`, and legacy options retained for executable
+compatibility. They are not adapter assembly references, but removing or
+renaming them would change serialized artifacts and public contracts. They are
+tracked for a follow-up compatibility/API review rather than silently changed.
+
+The Core has no compile-time reference to `IAEngine.OnlineOSAdapter`, Flutter,
+Patrol, ADB or AWS assemblies. Technology-specific behavior is composed by the
+compatibility executable and optional consumer-owned contracts.
+
 ## Safety gates
 
 - no NuGet package or `.nupkg` is created;
@@ -76,4 +102,3 @@ its existing local tests remain green.
    remain preserved during the transition.
 6. Assembly/API changes, persistence contract changes and removal of historical
    compatibility types still require human review.
-

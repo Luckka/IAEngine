@@ -63,6 +63,8 @@ its existing local tests remain green.
   references Core plus the adapter.
 - `tests/IAEngine.Core.Tests` runs against Core alone and proves local fake host
   execution.
+- E2E device contracts/models were moved to the adapter; Core no longer exposes
+  Patrol/ADB result types.
 - InfraSentinel now references `IAEngine.Core.csproj`, never the executable or
   adapter.
 

@@ -7,6 +7,7 @@ using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Pipeline;
 using OnlineOs.AiOrchestrator.Roadmap;
 using OnlineOs.AiOrchestrator.Reference;
+using OnlineOs.AiOrchestrator.Hosting;
 
 var jsonOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
 var toolDirectory = AppContext.BaseDirectory;
@@ -95,6 +96,7 @@ ITaskRouter router = resolvedComposition.ResolveProvider<ITaskRouter>("ollama");
 var implementationAgent = resolvedComposition.ResolveProvider<IImplementationAgent>("claude");
 var reviewAgent = resolvedComposition.ResolveProvider<IReviewAgent>("codex");
 IReferenceInspector referenceInspector = resolvedComposition.ResolveCapability<IReferenceInspector>("reference-inspection");
+IEngineReferenceContextProvider referenceContextProvider = new OnlineOsReferenceContextProvider(referenceInspector);
 var validationRunner = resolvedComposition.ResolveCapability<IValidationRunner>("validation");
 var gitWorkflow = resolvedComposition.ResolveCapability<IGitWorkflowManager>("git-workflow");
 var preflight = new PreflightService(processes, router, git, options, repository);
@@ -215,7 +217,7 @@ if (args[0] == "milestone")
     var milestoneOrchestrator = new Orchestrator(
         router, implementationAgent, validationRunner, reviewAgent, git, commandStore,
         new ReviewPolicy(options.ReviewPolicy), new WorkflowStateMachine(), options,
-        milestoneProgress, router as IFailureDiagnoser, referenceInspector, gitDefinition.Branch);
+        milestoneProgress, router as IFailureDiagnoser, referenceContextProvider, gitDefinition.Branch);
     var milestoneRunner = new MilestoneRunner(roadmap, stateStore, commandStore, milestoneOrchestrator, gitWorkflow, Console.Out);
     try
     {
@@ -300,7 +302,7 @@ if (args[0] == "run" && args.Length >= 2 && args[1].Equals("retry", StringCompar
     retryProgress.PrintHeader(run.RunId, run.Task.Title, retryBranch);
     var retryOrchestrator = new Orchestrator(router, implementationAgent, validationRunner,
         reviewAgent, git, commandStore, new ReviewPolicy(options.ReviewPolicy),
-        new WorkflowStateMachine(), options, retryProgress, router as IFailureDiagnoser, referenceInspector, run.Git?.Branch);
+        new WorkflowStateMachine(), options, retryProgress, router as IFailureDiagnoser, referenceContextProvider, run.Git?.Branch);
     try
     {
         var retried = await retryOrchestrator.RetryHumanRequiredAsync(run);
@@ -348,7 +350,7 @@ if (args[0] == "continue")
         options,
         resumeProgress,
         router as IFailureDiagnoser,
-        referenceInspector);
+        referenceContextProvider);
     RunRecord resumed;
     if (active.MilestoneId is not null)
     {
@@ -415,7 +417,7 @@ var orchestrator = new Orchestrator(
     options,
     progress,
     router as IFailureDiagnoser,
-    referenceInspector);
+    referenceContextProvider);
 
 var result = await orchestrator.ExecuteAsync(task, dryRun, runId: runId, headerAlreadyPrinted: true);
 if (dryRun && result.Plan is not null)

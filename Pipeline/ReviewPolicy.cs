@@ -19,11 +19,6 @@ public sealed class ReviewPolicy(ReviewPolicyOptions options)
             || (options.BlockingHighFails && finding.Severity == FindingSeverity.High && finding.Blocking));
     }
 
-    public bool PassesPrototypeConformity(ReviewResult review, PrototypeEvidenceCheck evidence)
-        => evidence.Passed && Passes(review) && HasPrototypeEvidence(review.PrototypeEvidence)
-            && !review.Findings.Any(x => x.Blocking &&
-                (x.Severity is FindingSeverity.Critical or FindingSeverity.High));
-
     private static bool HasPrototypeEvidence(PrototypeReviewEvidence? evidence) => evidence is not null
         && !string.IsNullOrWhiteSpace(evidence.ReferenceState)
         && !string.IsNullOrWhiteSpace(evidence.ReferenceScreenshot)

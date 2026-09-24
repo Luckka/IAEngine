@@ -7,8 +7,26 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="src/**/*.cs" />
+    <Compile Remove="Abstractions/**/*.cs" />
+    <Compile Remove="Configuration/**/*.cs" />
+    <Compile Remove="Hosting/**/*.cs" />
+    <Compile Remove="Infrastructure/**/*.cs" />
+    <Compile Remove="Models/**/*.cs" />
+    <Compile Remove="Roadmap/**/*.cs" />
+    <Compile Remove="Pipeline/FailureDiagnosis.cs" />
+    <Compile Remove="Pipeline/GitWorkflowManager.cs" />
+    <Compile Remove="Pipeline/MilestoneCatalog.cs" />
+    <Compile Remove="Pipeline/Orchestrator.cs" />
+    <Compile Remove="Pipeline/RemediationContext.cs" />
+    <Compile Remove="Pipeline/ReviewPolicy.cs" />
+    <Compile Remove="Pipeline/RunHealthEvaluator.cs" />
+    <Compile Remove="Pipeline/WorkflowStateMachine.cs" />
     <Compile Remove="tests/**/*.cs" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.example.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="src/IAEngine.Core/IAEngine.Core.csproj" />
   </ItemGroup>
 </Project>

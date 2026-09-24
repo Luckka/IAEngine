@@ -56,7 +56,7 @@ public sealed class EngineHost
             context.Options,
             context.ProgressReporter,
             router as IFailureDiagnoser,
-            context.ReferenceInspector,
+            context.ReferenceContextProvider,
             context.ExpectedBranch);
 
         return new EngineHost(context, resolved, hostOrchestrator);

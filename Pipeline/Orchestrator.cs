@@ -1,9 +1,8 @@
 using OnlineOs.AiOrchestrator.Abstractions;
-using OnlineOs.AiOrchestrator.Agents;
 using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Infrastructure;
 using OnlineOs.AiOrchestrator.Models;
-using OnlineOs.AiOrchestrator.Reference;
+using OnlineOs.AiOrchestrator.Hosting;
 
 namespace OnlineOs.AiOrchestrator.Pipeline;
 
@@ -21,12 +20,13 @@ public sealed class Orchestrator(
     AppOptions options,
     IProgressReporter? progressReporter = null,
     IFailureDiagnoser? diagnoser = null,
-    IReferenceInspector? referenceInspector = null,
+    IEngineReferenceContextProvider? referenceContextProvider = null,
     string? expectedBranch = null)
 {
+    public const string PermissionDeniedReason = "CLAUDE_PERMISSION_DENIED";
     private IProgressReporter Progress { get; } = progressReporter ?? NullProgressReporter.Instance;
     private RecoveryPolicy Recovery { get; } = new(options.Orchestrator);
-    private IReferenceInspector? ReferenceInspector { get; } = referenceInspector;
+    private IEngineReferenceContextProvider? ReferenceContextProvider { get; } = referenceContextProvider;
     private string? ExpectedBranch { get; } = expectedBranch;
 
     public async Task<(RunRecord Run, DryRunPlan? Plan)> ExecuteAsync(
@@ -169,7 +169,7 @@ public sealed class Orchestrator(
             ? WorkflowState.Failed
             : decision.HumanRequired ? WorkflowState.HumanRequired : WorkflowState.WaitingRetry;
         var transitionReason = decision.Category == FailureCategory.PermissionDenied && run.LastFailure?.Stage == WorkflowState.Implementing
-            ? ClaudeAgent.PermissionDeniedReason : decision.Reason;
+            ? PermissionDeniedReason : decision.Reason;
         await MoveAsync(run, terminal, transitionReason, ct);
         await CompleteAsync(run, decision.HumanRequired ? "HUMAN_REQUIRED" : "PAUSED", ct);
         Progress.CompleteStage(decision.HumanRequired ? $"HUMAN REQUIRED: {decision.Reason}" : $"WAITING_RETRY: {decision.Category} | {decision.Reason}", false);
@@ -219,7 +219,7 @@ public sealed class Orchestrator(
             run.LatestValidationResults.Clear();
             await runs.SaveAsync(run, ct);
         }
-        if (ReferenceInspector is not null && IsReferenceApplicable(run.Task) && string.IsNullOrWhiteSpace(run.Task.ReferenceContext))
+        if (ReferenceContextProvider is not null && ReferenceContextProvider.IsApplicable(run.Task) && string.IsNullOrWhiteSpace(run.Task.ReferenceContext))
         {
             run.Task = await PrepareReferenceContextAsync(run.Task, run.RunId, ct);
             await runs.SaveArtifactAsync(run.RunId, "task.json", run.Task, ct);
@@ -314,33 +314,18 @@ public sealed class Orchestrator(
 
     private async Task<DevelopmentTask> PrepareReferenceContextAsync(DevelopmentTask task, string? runId, CancellationToken ct)
     {
-        if (ReferenceInspector is null || !IsReferenceApplicable(task)) return task;
-        var artifact = await ReferenceInspector.InspectAsync(task, ct);
-        var context = BuildReferenceSummary(artifact);
-        if (runId is not null)
-            await runs.SaveArtifactAsync(runId, options.Reference.ArtifactName, artifact, ct);
-        return task with { ReferenceContext = context };
+        if (ReferenceContextProvider is null || !ReferenceContextProvider.IsApplicable(task)) return task;
+        var result = await ReferenceContextProvider.InspectAsync(task, ct);
+        if (runId is not null && result.Artifact is not null)
+            await runs.SaveArtifactAsync(runId, result.ArtifactName, result.Artifact, ct);
+        return task with { ReferenceContext = result.Context };
     }
-
-    public static bool IsReferenceApplicable(DevelopmentTask task) =>
-        task.Id.StartsWith("M2", StringComparison.OrdinalIgnoreCase)
-        || task.Id.StartsWith("M3", StringComparison.OrdinalIgnoreCase)
-        || task.Id.StartsWith("M4", StringComparison.OrdinalIgnoreCase)
-        || task.Id.StartsWith("M5", StringComparison.OrdinalIgnoreCase)
-        || (task.Domains?.Contains("flutter", StringComparer.OrdinalIgnoreCase) == true && task.Domains.Contains("milestone", StringComparer.OrdinalIgnoreCase));
 
     public static bool IsReferenceValidationOnly(DevelopmentTask task)
     {
         var text = $"{task.Id} {task.Title} {task.Description}";
         return text.Contains("read-only", StringComparison.OrdinalIgnoreCase)
             && (text.Contains("reference", StringComparison.OrdinalIgnoreCase) || text.Contains("validation", StringComparison.OrdinalIgnoreCase));
-    }
-
-    public static string BuildReferenceSummary(BackendReferenceArtifact artifact)
-    {
-        var confirmed = artifact.ConfirmedContracts.Take(12).Select(x => $"- {x.Concept}: {x.BackendType ?? "public contract source"} ({x.Classification})");
-        var deferred = artifact.DeferredItems.Concat(artifact.BackendGaps).Take(8).Select(x => $"- {x.Description} Keep behind repository abstraction; {x.FutureAction}");
-        return $"REFERENCE SYSTEM: OnlineOS monolith\nBranch: {artifact.ReferenceBranch}\nCommit: {artifact.ReferenceCommit}\nStatus: {artifact.ReferenceStatus}\nRelevant confirmed/selected contracts:\n{string.Join("\n", confirmed.DefaultIfEmpty("- None confirmed; use product docs and local mocks."))}\nDeferred compatibility:\n{string.Join("\n", deferred.DefaultIfEmpty("- None."))}\nIMPLEMENTATION RULES: Flutter remains runtime-independent from backend; use mocks/local data; no real HTTP integration; do not modify the reference repository; legacy frontend is secondary evidence only.";
     }
 
     /// The only workflow executor. New and resumed runs enter here with different
@@ -386,7 +371,7 @@ public sealed class Orchestrator(
                             if (result.PermissionDenials?.Any(x => !x.Blocking) == true
                                 && !await HasProducedChangesAsync(baselineStatus, baselineDiff, ct))
                             {
-                                await FailAsync(run, ClaudeAgent.PermissionDeniedReason, ct);
+                                await FailAsync(run, PermissionDeniedReason, ct);
                                 break;
                             }
                         }
@@ -431,7 +416,7 @@ public sealed class Orchestrator(
         // Reconstruct only missing derived data; historical artifacts remain untouched.
         if (run.Routing is not null && run.EngineeringProfile is null)
         {
-            run.EngineeringProfile = EngineeringStandardsPolicy.Create(run.Task, run.Routing);
+            run.EngineeringProfile = GenericEngineeringStandardsPolicy.Create(run.Task, run.Routing);
             if (run.ValidationExpectations.Count == 0) RecordValidationExpectations(run, run.EngineeringProfile);
             await runs.SaveArtifactAsync(run.RunId, "engineering-profile.json", run.EngineeringProfile, ct);
             await runs.SaveArtifactAsync(run.RunId, "validation-expectations.json", run.ValidationExpectations, ct);
@@ -452,7 +437,7 @@ public sealed class Orchestrator(
         if (run.Routing is null)
         {
             run.Routing = await router.RouteAsync(run.Task, ct);
-            run.EngineeringProfile = EngineeringStandardsPolicy.Create(run.Task, run.Routing);
+            run.EngineeringProfile = GenericEngineeringStandardsPolicy.Create(run.Task, run.Routing);
             RecordValidationExpectations(run, run.EngineeringProfile);
             await runs.SaveArtifactAsync(run.RunId, "routing.json", run.Routing, ct);
             await runs.SaveArtifactAsync(run.RunId, "engineering-profile.json", run.EngineeringProfile, ct);
@@ -483,7 +468,7 @@ public sealed class Orchestrator(
         if (!run.ValidationCompleted)
         {
             run.CurrentValidationCycle++;
-            var results = await validation.RunAsync(run.EngineeringProfile ?? EngineeringStandardsPolicy.Create(run.Task, run.Routing!), ct);
+            var results = await validation.RunAsync(run.EngineeringProfile ?? GenericEngineeringStandardsPolicy.Create(run.Task, run.Routing!), ct);
             run.ValidationResults.AddRange(results);
             run.LatestValidationResults.Clear();
             run.LatestValidationResults.AddRange(results);
@@ -681,7 +666,7 @@ public sealed class Orchestrator(
 
     private static string SafeProgressFailureReason(WorkflowState stage, string reason)
     {
-        if (string.Equals(reason, ClaudeAgent.PermissionDeniedReason, StringComparison.Ordinal)) return reason;
+        if (string.Equals(reason, PermissionDeniedReason, StringComparison.Ordinal)) return reason;
         if (reason.StartsWith("Branch '", StringComparison.Ordinal) || reason.StartsWith("Detached HEAD", StringComparison.Ordinal)) return reason;
         return $"{stage} failed. See the run artifacts for details.";
     }

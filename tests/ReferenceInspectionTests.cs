@@ -67,7 +67,7 @@ public sealed class ReferenceInspectionTests
             ConfirmedContracts = [new ReferenceFinding("ServiceOrder.Id", "Api/Dto.cs", "Guid", CompatibilityClassification.CONFIRMED)],
             DeferredItems = [new BackendGap("GAP", "Mobile sync is not confirmed", "local mock", "M6")]
         };
-        var summary = OnlineOs.AiOrchestrator.Pipeline.Orchestrator.BuildReferenceSummary(artifact);
+        var summary = OnlineOs.AiOrchestrator.Reference.OnlineOsReferenceContextProvider.BuildSummary(artifact);
         Assert.Contains("ServiceOrder.Id", summary);
         Assert.Contains("no real HTTP integration", summary, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("legacy architecture", summary, StringComparison.OrdinalIgnoreCase);

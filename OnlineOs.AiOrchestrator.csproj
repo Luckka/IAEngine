@@ -39,6 +39,7 @@
     <Compile Remove="tests/**/*.cs" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.example.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="appsettings.onlineos.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="src/IAEngine.Core/IAEngine.Core.csproj" />

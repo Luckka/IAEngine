@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
+    <ProjectReference Include="../../src/IAEngine.OnlineOSAdapter/IAEngine.OnlineOSAdapter.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Compile Include="../ClaudeAgentTests.cs" Link="ClaudeAgentTests.cs" />
+    <Compile Include="../CodexAgentTests.cs" Link="CodexAgentTests.cs" />
+    <Compile Include="../EngineeringStandardsPolicyTests.cs" Link="EngineeringStandardsPolicyTests.cs" />
+    <Compile Include="../OllamaTaskRouterTests.cs" Link="OllamaTaskRouterTests.cs" />
+    <Compile Include="../PatrolArtifactTests.cs" Link="PatrolArtifactTests.cs" />
+    <Compile Include="../PatrolDeviceLifecycleTests.cs" Link="PatrolDeviceLifecycleTests.cs" />
+    <Compile Include="../PatrolQaTests.cs" Link="PatrolQaTests.cs" />
+    <Compile Include="../PrototypeEvidenceGateTests.cs" Link="PrototypeEvidenceGateTests.cs" />
+    <Compile Include="../ReferenceInspectionTests.cs" Link="ReferenceInspectionTests.cs" />
+    <Compile Include="../TestData.cs" Link="TestData.cs" />
+    <Compile Include="../ValidationRunnerTests.cs" Link="ValidationRunnerTests.cs" />
+  </ItemGroup>
+</Project>

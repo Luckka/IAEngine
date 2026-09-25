@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>OnlineOs.AiOrchestrator</RootNamespace>
     <AssemblyName>IAEngine.Core</AssemblyName>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
   </PropertyGroup>
 
   <ItemGroup>

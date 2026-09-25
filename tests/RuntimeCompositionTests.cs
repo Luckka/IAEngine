@@ -84,7 +84,7 @@ public sealed class RuntimeCompositionTests
     [Fact]
     public void OnlineOsConfigurationNamesAreExplicitlyRegisterableWithoutExecutingProviders()
     {
-        var options = ConfigLoader.Load(RepositoryRoot());
+        var options = ConfigLoader.LoadFile(Path.Combine(RepositoryRoot(), "appsettings.onlineos.json"));
         var plan = EngineComposition.Create(options);
         var validation = new FakeValidation();
         var builder = plan.CreateRuntimeBuilder()

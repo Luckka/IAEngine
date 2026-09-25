@@ -15,7 +15,7 @@ var toolDirectory = AppContext.BaseDirectory;
 var repositoryCandidate = FindRepository(Directory.GetCurrentDirectory()) ?? FindRepository(toolDirectory);
 if (repositoryCandidate is null)
 {
-    Console.Error.WriteLine("No Git repository found. Run from the OnlineOS repository or a descendant.");
+    Console.Error.WriteLine("No Git repository found. Run from the consuming project repository or a descendant.");
     return 2;
 }
 var workspace = new WorkspaceBoundary(repositoryCandidate);
@@ -449,7 +449,7 @@ static string FindConfigDirectory(string current, string binary)
 
 static void PrintUsage()
 {
-    Console.WriteLine("OnlineOS AI Orchestrator");
+    Console.WriteLine("IAEngine CLI");
     Console.WriteLine("  dotnet run -- preflight");
     Console.WriteLine("  dotnet run -- task \"Implement ...\" [--dry-run]");
     Console.WriteLine("  dotnet run -- task-file task.json [--dry-run]");

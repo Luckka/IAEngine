@@ -25,7 +25,7 @@ public sealed class M1CoreBoundaryTests
     [Fact]
     public void OnlineOsValuesAreExplicitProfileDataRatherThanGenericDefaults()
     {
-        var options = ConfigLoader.Load(RepositoryRoot());
+        var options = ConfigLoader.LoadFile(Path.Combine(RepositoryRoot(), "appsettings.onlineos.json"));
 
         Assert.True(options.ProfileDeclared);
         Assert.Equal("onlineos-mobile", options.Project.Id);

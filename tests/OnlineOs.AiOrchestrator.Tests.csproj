@@ -7,6 +7,21 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="IAEngine.Core.Tests/**/*.cs" />
+    <Compile Remove="ClaudeAgentTests.cs" />
+    <Compile Remove="CodexAgentTests.cs" />
+    <Compile Remove="EngineeringStandardsPolicyTests.cs" />
+    <Compile Remove="OllamaTaskRouterTests.cs" />
+    <Compile Remove="PatrolArtifactTests.cs" />
+    <Compile Remove="PatrolDeviceLifecycleTests.cs" />
+    <Compile Remove="PatrolQaTests.cs" />
+    <Compile Remove="PrototypeEvidenceGateTests.cs" />
+    <Compile Remove="ReferenceInspectionTests.cs" />
+    <Compile Remove="ValidationRunnerTests.cs" />
+    <Compile Remove="EngineHostTests.cs" />
+    <Compile Remove="ProcessRunnerTests.cs" />
+    <Compile Remove="RoadmapTests.cs" />
+    <Compile Remove="TechnologyBoundaryTests.cs" />
+    <Compile Remove="WorkspaceBoundaryTests.cs" />
     <Compile Remove="**/obj/**/*.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />

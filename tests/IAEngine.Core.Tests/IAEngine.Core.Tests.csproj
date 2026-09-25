@@ -14,4 +14,11 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../EngineHostTests.cs" Link="EngineHostTests.cs" />
+    <Compile Include="../ProcessRunnerTests.cs" Link="ProcessRunnerTests.cs" />
+    <Compile Include="../RoadmapTests.cs" Link="RoadmapTests.cs" />
+    <Compile Include="../TechnologyBoundaryTests.cs" Link="TechnologyBoundaryTests.cs" />
+    <Compile Include="../WorkspaceBoundaryTests.cs" Link="WorkspaceBoundaryTests.cs" />
+  </ItemGroup>
 </Project>

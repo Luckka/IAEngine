@@ -1,7 +1,6 @@
 using OnlineOs.AiOrchestrator.Abstractions;
 using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Models;
-using OnlineOs.AiOrchestrator.Reference;
 using OnlineOs.AiOrchestrator.Roadmap;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
@@ -34,7 +33,7 @@ public sealed class EngineHostContext
     public required IRunStore RunStore { get; init; }
     public required IGitService Git { get; init; }
     public IProgressReporter? ProgressReporter { get; init; }
-    public IReferenceInspector? ReferenceInspector { get; init; }
+    public IEngineReferenceContextProvider? ReferenceContextProvider { get; init; }
     public string? ExpectedBranch { get; init; }
     public IEngineTaskSource? TaskSource { get; init; }
     public IEngineMilestoneSource? MilestoneSource { get; init; }

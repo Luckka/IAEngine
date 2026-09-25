@@ -6,12 +6,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="IAEngine.Core.Tests/**/*.cs" />
-    <Compile Remove="**/obj/**/*.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
-    <ProjectReference Include="../OnlineOs.AiOrchestrator.csproj" />
+    <ProjectReference Include="../../src/IAEngine.Core/IAEngine.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

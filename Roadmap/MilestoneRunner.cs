@@ -11,7 +11,9 @@ public sealed class MilestoneRunner(
     IRunStore runs,
     Orchestrator orchestrator,
     IGitWorkflowManager? gitWorkflow = null,
-    TextWriter? output = null)
+    TextWriter? output = null,
+    IMilestoneTaskGate? taskGate = null,
+    IMilestoneTaskContextProvider? taskContextProvider = null)
 {
     private TextWriter Output { get; } = output ?? TextWriter.Null;
 
@@ -133,33 +135,19 @@ public sealed class MilestoneRunner(
         if (run.State == WorkflowState.Approved && string.Equals(run.FinalDecision, "PASS", StringComparison.OrdinalIgnoreCase))
         {
             var taskDefinition = definition.Tasks.Single(task => task.Id == taskId);
-            if (taskDefinition.PrototypeConformityRequired && taskDefinition.PrototypeStates.Count > 0)
+            if (taskGate is not null)
             {
-                var evidence = PrototypeEvidenceGate.Check(stateStore.RepositoryRoot, definition.Id, taskDefinition.PrototypeStates);
-                if (!evidence.Passed)
+                var gate = await taskGate.EvaluateAsync(stateStore.RepositoryRoot, definition, taskDefinition, ct);
+                if (!gate.Passed)
                 {
                     taskState.Status = MilestoneTaskStatus.Blocked;
-                    taskState.FailureReason = evidence.Code;
-                    taskState.RequiredAction = string.Join(", ", evidence.Missing);
+                    taskState.FailureReason = gate.Code;
+                    taskState.RequiredAction = string.Join(", ", gate.Missing);
                     state.Status = MilestoneRuntimeStatus.Failed;
-                    state.FailureReason = evidence.Code;
+                    state.FailureReason = gate.Code;
                     state.RequiredAction = taskState.RequiredAction;
                     await stateStore.SaveAsync(state, ct);
-                    Output.WriteLine($"PROTOTYPE EVIDENCE GATE BLOCKED {taskId}: {taskState.RequiredAction}");
-                    return;
-                }
-                var conformity = VisualConformityReviewGate.Check(
-                    stateStore.RepositoryRoot, definition.Id, taskDefinition.PrototypeStates);
-                if (!conformity.Passed)
-                {
-                    taskState.Status = MilestoneTaskStatus.Blocked;
-                    taskState.FailureReason = conformity.Code;
-                    taskState.RequiredAction = string.Join(", ", conformity.Missing);
-                    state.Status = MilestoneRuntimeStatus.Failed;
-                    state.FailureReason = conformity.Code;
-                    state.RequiredAction = taskState.RequiredAction;
-                    await stateStore.SaveAsync(state, ct);
-                    Output.WriteLine($"VISUAL CONFORMITY REVIEW BLOCKED {taskId}: {taskState.RequiredAction}");
+                    Output.WriteLine($"MILESTONE TASK GATE BLOCKED {taskId}: {taskState.RequiredAction}");
                     return;
                 }
             }
@@ -218,10 +206,11 @@ public sealed class MilestoneRunner(
             throw new InvalidOperationException($"Milestone {definition.Id} is blocked until checkpoint approval for {prior.Id}.");
     }
 
-    private static DevelopmentTask CompileTask(MilestoneDefinition milestone, RoadmapTaskDefinition task, MilestoneRuntimeState state)
+    private DevelopmentTask CompileTask(MilestoneDefinition milestone, RoadmapTaskDefinition task, MilestoneRuntimeState state)
     {
         var completed = milestone.Tasks.Where(x => state.Tasks.TryGetValue(x.Id, out var runtime) && runtime.Status == MilestoneTaskStatus.Done).Select(x => $"{x.Id}: DONE").ToArray();
         var description = $"Milestone {milestone.Id} — {milestone.Title}. Task {task.Id} — {task.Title}.\n{task.Description}\n\nScope boundaries: implement only confirmed requirements; do not invent API or backend rules; do not implement future milestone scope.\nCompleted dependencies: {(completed.Length == 0 ? "none" : string.Join(", ", completed))}";
-        return new DevelopmentTask(task.Id, task.Title, description, Domains: ["milestone", "flutter"], Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria);
+        var domains = taskContextProvider?.GetDomains(milestone, task) ?? ["milestone"];
+        return new DevelopmentTask(task.Id, task.Title, description, Domains: domains, Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria);
     }
 }

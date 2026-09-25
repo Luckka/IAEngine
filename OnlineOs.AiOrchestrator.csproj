@@ -7,8 +7,41 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="src/**/*.cs" />
+    <Compile Remove="Abstractions/**/*.cs" />
+    <Compile Remove="Configuration/**/*.cs" />
+    <Compile Remove="Hosting/**/*.cs" />
+    <Compile Remove="Infrastructure/**/*.cs" />
+    <Compile Remove="Models/**/*.cs" />
+    <Compile Remove="Roadmap/**/*.cs" />
+    <Compile Remove="Agents/**/*.cs" />
+    <Compile Remove="Reference/**/*.cs" />
+    <Compile Remove="Pipeline/AdbDeviceArtifactCapture.cs" />
+    <Compile Remove="Pipeline/AdbVideoCapture.cs" />
+    <Compile Remove="Pipeline/EngineeringStandardsPolicy.cs" />
+    <Compile Remove="Pipeline/PatrolDeviceManager.cs" />
+    <Compile Remove="Pipeline/PatrolE2ETestRunner.cs" />
+    <Compile Remove="Pipeline/PatrolExecutableResolver.cs" />
+    <Compile Remove="Pipeline/PatrolTestSelector.cs" />
+    <Compile Remove="Pipeline/PreflightService.cs" />
+    <Compile Remove="Pipeline/PrototypeEvidenceGate.cs" />
+    <Compile Remove="Pipeline/QaReportWriter.cs" />
+    <Compile Remove="Pipeline/ValidationRunner.cs" />
+    <Compile Remove="Pipeline/VisualConformityReviewGate.cs" />
+    <Compile Remove="Pipeline/FailureDiagnosis.cs" />
+    <Compile Remove="Pipeline/GitWorkflowManager.cs" />
+    <Compile Remove="Pipeline/MilestoneCatalog.cs" />
+    <Compile Remove="Pipeline/Orchestrator.cs" />
+    <Compile Remove="Pipeline/RemediationContext.cs" />
+    <Compile Remove="Pipeline/ReviewPolicy.cs" />
+    <Compile Remove="Pipeline/RunHealthEvaluator.cs" />
+    <Compile Remove="Pipeline/WorkflowStateMachine.cs" />
     <Compile Remove="tests/**/*.cs" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.example.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="src/IAEngine.Core/IAEngine.Core.csproj" />
+    <ProjectReference Include="src/IAEngine.OnlineOSAdapter/IAEngine.OnlineOSAdapter.csproj" />
   </ItemGroup>
 </Project>

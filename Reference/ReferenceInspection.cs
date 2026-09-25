@@ -4,6 +4,7 @@ using OnlineOs.AiOrchestrator.Abstractions;
 using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Infrastructure;
+using OnlineOs.AiOrchestrator.Hosting;
 
 namespace OnlineOs.AiOrchestrator.Reference;
 
@@ -56,6 +57,33 @@ public sealed class ReferenceIndex
 public interface IReferenceInspector
 {
     Task<BackendReferenceArtifact> InspectAsync(DevelopmentTask task, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// OnlineOS adapter for the technology-neutral Core reference-context contract.
+/// The Core receives only the resulting context and opaque artifact.
+/// </summary>
+public sealed class OnlineOsReferenceContextProvider(IReferenceInspector inspector) : IEngineReferenceContextProvider
+{
+    public bool IsApplicable(DevelopmentTask task) =>
+        task.Id.StartsWith("M2", StringComparison.OrdinalIgnoreCase)
+        || task.Id.StartsWith("M3", StringComparison.OrdinalIgnoreCase)
+        || task.Id.StartsWith("M4", StringComparison.OrdinalIgnoreCase)
+        || task.Id.StartsWith("M5", StringComparison.OrdinalIgnoreCase)
+        || (task.Domains?.Contains("flutter", StringComparer.OrdinalIgnoreCase) == true && task.Domains.Contains("milestone", StringComparer.OrdinalIgnoreCase));
+
+    public async Task<EngineReferenceContext> InspectAsync(DevelopmentTask task, CancellationToken cancellationToken = default)
+    {
+        var artifact = await inspector.InspectAsync(task, cancellationToken);
+        return new EngineReferenceContext(BuildSummary(artifact), artifact, "backend-reference.json");
+    }
+
+    public static string BuildSummary(BackendReferenceArtifact artifact)
+    {
+        var confirmed = artifact.ConfirmedContracts.Take(12).Select(x => $"- {x.Concept}: {x.BackendType ?? "public contract source"} ({x.Classification})");
+        var deferred = artifact.DeferredItems.Concat(artifact.BackendGaps).Take(8).Select(x => $"- {x.Description} Keep behind repository abstraction; {x.FutureAction}");
+        return $"REFERENCE SYSTEM: OnlineOS monolith\nBranch: {artifact.ReferenceBranch}\nCommit: {artifact.ReferenceCommit}\nStatus: {artifact.ReferenceStatus}\nRelevant confirmed/selected contracts:\n{string.Join("\n", confirmed.DefaultIfEmpty("- None confirmed; use product docs and local mocks."))}\nDeferred compatibility:\n{string.Join("\n", deferred.DefaultIfEmpty("- None."))}\nIMPLEMENTATION RULES: Flutter remains runtime-independent from backend; use mocks/local data; no real HTTP integration; do not modify the reference repository; legacy frontend is secondary evidence only.";
+    }
 }
 
 /// <summary>Containment and command policy for the separate, read-only monolith root.</summary>

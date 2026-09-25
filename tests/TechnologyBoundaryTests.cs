@@ -20,6 +20,17 @@ public sealed class TechnologyBoundaryTests
     }
 
     [Fact]
+    public void EngineHostLivesInCoreWithoutReferencingTheOnlineOsAdapter()
+    {
+        var coreAssembly = typeof(EngineHost).Assembly;
+
+        Assert.Equal("IAEngine.Core", coreAssembly.GetName().Name);
+        Assert.DoesNotContain(
+            coreAssembly.GetReferencedAssemblies(),
+            assembly => string.Equals(assembly.Name, "IAEngine.OnlineOSAdapter", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void GenericRoadmapValidationRejectsMissingDependenciesBeforeExecution()
     {
         var definition = new MilestoneDefinition

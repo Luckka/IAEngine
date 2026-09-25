@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>OnlineOs.AiOrchestrator</RootNamespace>
+    <AssemblyName>IAEngine.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Abstractions/Contracts.cs" Link="Abstractions/Contracts.cs" />
+    <Compile Include="../../Abstractions/GitWorkflowContracts.cs" Link="Abstractions/GitWorkflowContracts.cs" />
+    <Compile Include="../../Configuration/OrchestratorOptions.cs" Link="Configuration/OrchestratorOptions.cs" />
+    <Compile Include="../../Configuration/ProjectProfile.cs" Link="Configuration/ProjectProfile.cs" />
+    <Compile Include="../../Configuration/QaOptions.cs" Link="Configuration/QaOptions.cs" />
+    <Compile Include="../../Configuration/RuntimeComposition.cs" Link="Configuration/RuntimeComposition.cs" />
+    <Compile Include="../../Hosting/EngineHost.cs" Link="Hosting/EngineHost.cs" />
+    <Compile Include="../../Hosting/EngineHostContracts.cs" Link="Hosting/EngineHostContracts.cs" />
+    <Compile Include="../../Hosting/EngineReferenceContracts.cs" Link="Hosting/EngineReferenceContracts.cs" />
+    <Compile Include="../../Infrastructure/GitLifecycleStore.cs" Link="Infrastructure/GitLifecycleStore.cs" />
+    <Compile Include="../../Infrastructure/GitService.cs" Link="Infrastructure/GitService.cs" />
+    <Compile Include="../../Infrastructure/JsonSupport.cs" Link="Infrastructure/JsonSupport.cs" />
+    <Compile Include="../../Infrastructure/ProcessRunner.cs" Link="Infrastructure/ProcessRunner.cs" />
+    <Compile Include="../../Infrastructure/ProgressReporter.cs" Link="Infrastructure/ProgressReporter.cs" />
+    <Compile Include="../../Infrastructure/RunStore.cs" Link="Infrastructure/RunStore.cs" />
+    <Compile Include="../../Infrastructure/WorkspaceBoundary.cs" Link="Infrastructure/WorkspaceBoundary.cs" />
+    <Compile Include="../../Models/WorkflowModels.cs" Link="Models/WorkflowModels.cs" />
+    <Compile Include="../../Pipeline/FailureDiagnosis.cs" Link="Pipeline/FailureDiagnosis.cs" />
+    <Compile Include="../../Pipeline/GitWorkflowManager.cs" Link="Pipeline/GitWorkflowManager.cs" />
+    <Compile Include="../../Pipeline/MilestoneCatalog.cs" Link="Pipeline/MilestoneCatalog.cs" />
+    <Compile Include="../../Pipeline/Orchestrator.cs" Link="Pipeline/Orchestrator.cs" />
+    <Compile Include="../../Pipeline/RemediationContext.cs" Link="Pipeline/RemediationContext.cs" />
+    <Compile Include="../../Pipeline/ReviewPolicy.cs" Link="Pipeline/ReviewPolicy.cs" />
+    <Compile Include="../../Pipeline/RunHealthEvaluator.cs" Link="Pipeline/RunHealthEvaluator.cs" />
+    <Compile Include="../../Pipeline/WorkflowStateMachine.cs" Link="Pipeline/WorkflowStateMachine.cs" />
+    <Compile Include="../../Roadmap/MilestoneRunner.cs" Link="Roadmap/MilestoneRunner.cs" />
+    <Compile Include="../../Roadmap/MilestoneGates.cs" Link="Roadmap/MilestoneGates.cs" />
+    <Compile Include="../../Roadmap/RoadmapCatalog.cs" Link="Roadmap/RoadmapCatalog.cs" />
+    <Compile Include="../../Roadmap/RoadmapModels.cs" Link="Roadmap/RoadmapModels.cs" />
+  </ItemGroup>
+</Project>

@@ -66,6 +66,7 @@ public sealed class Orchestrator(
             await runs.SaveArtifactAsync(run.RunId, "implementation.json", result, ct);
             if (result.Success)
             {
+                AddChangedFiles(run, result.FilesChanged);
                 run.ImplementationCompleted = true;
                 run.LastSuccessfulStage = WorkflowState.Implementing;
                 await runs.SaveAsync(run, ct);
@@ -87,6 +88,7 @@ public sealed class Orchestrator(
             await runs.SaveArtifactAsync(run.RunId, $"remediation-{run.RemediationCount}-{run.RemediationContextReductionAttempts}.json", result, ct);
             if (result.Success)
             {
+                AddChangedFiles(run, result.FilesChanged);
                 run.RemediationCompleted = true;
                 run.LastSuccessfulStage = WorkflowState.Remediating;
                 await runs.SaveAsync(run, ct);
@@ -180,6 +182,13 @@ public sealed class Orchestrator(
     {
         if (process is not null) run.Commands.Add(process);
         if (usage is not null) run.Usage.Add(usage);
+    }
+
+    private static void AddChangedFiles(RunRecord run, IReadOnlyList<string>? files)
+    {
+        if (files is null) return;
+        foreach (var file in files.Where(file => !string.IsNullOrWhiteSpace(file)).Distinct(StringComparer.Ordinal))
+            if (!run.ChangedFiles.Contains(file, StringComparer.Ordinal)) run.ChangedFiles.Add(file);
     }
 
     public async Task<RunRecord> ContinueAsync(RunRecord run, CancellationToken ct = default)

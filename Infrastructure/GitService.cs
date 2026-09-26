@@ -30,8 +30,7 @@ public sealed class GitService(IProcessRunner processes, string repository, GitO
     {
         var branch = await GetBranchAsync(ct);
         if (string.IsNullOrWhiteSpace(branch)) return (false, "Detached HEAD is not allowed for implementation runs.");
-        var permanentlyProtected = branch is "developer" or "producao";
-        if (permanentlyProtected || (!options.AllowProtectedBranch && options.ProtectedBranches.Contains(branch, StringComparer.OrdinalIgnoreCase)))
+        if (!options.AllowProtectedBranch && options.ProtectedBranches.Contains(branch, StringComparer.OrdinalIgnoreCase))
             return (false, $"Branch '{branch}' is protected. Create or switch to a feature/work branch.");
         return (true, $"Branch '{branch}' is allowed.");
     }

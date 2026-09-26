@@ -54,7 +54,7 @@ This is an **INFERRED** classification: the current implementations still contai
 | `RunRecord` | Generic state/checkpoint plus engineering rubric, prototype/backend artifact paths, provider counters and Git lifecycle data. |
 | `Configuration/OrchestratorOptions.cs` | Core retry/timeouts plus Ollama/Claude/Codex/Flutter/Patrol/OnlineOS environment variables and defaults. |
 | `ValidationRunner` | Generic command runner plus Flutter project/device semantics and OnlineOS workspace wording. |
-| `GitWorkflowManager` | Generic lifecycle gates plus OnlineOS branch/path/staging assumptions. |
+| `GitWorkflowManager` | Legacy CLI lifecycle gates plus OnlineOS branch/path/staging assumptions; excluded from `IAEngine.Core` in M11-B. |
 | `Reference/ReferenceInspection.cs` | Generic read-only reference concept plus monolith/b1208/OnlineOS artifact schema. |
 
 ## Explicit search results
@@ -83,4 +83,3 @@ The intended public API, package boundaries, supported .NET versions beyond this
 ### HUMAN DECISION REQUIRED
 
 The human owner must choose whether compatibility is source-level (same namespace), binary-level (façade), or behavioral only. This materially affects migration order and package/API design.
-

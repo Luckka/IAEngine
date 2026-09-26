@@ -31,7 +31,7 @@ public sealed class WorkspaceBoundary
     public string Resolve(string path)
     {
         var candidate = Path.GetFullPath(path, Root);
-        if (!Contains(candidate)) throw new InvalidOperationException($"Path escapes the OnlineOS workspace: {path}");
+        if (!Contains(candidate)) throw new InvalidOperationException($"Path escapes the configured workspace: {path}");
         return candidate;
     }
 

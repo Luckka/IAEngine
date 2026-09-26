@@ -23,7 +23,7 @@ public sealed class ProcessRunner : IProcessRunner
             info.FileName = "/bin/launchctl";
             info.ArgumentList.Add("submit");
             info.ArgumentList.Add("-l");
-            info.ArgumentList.Add("onlineos-ai-orchestrator-emulator");
+            info.ArgumentList.Add("iaengine-detached-process");
             info.ArgumentList.Add("--");
             info.ArgumentList.Add(spec.FileName);
             foreach (var argument in spec.Arguments) info.ArgumentList.Add(argument);

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using IAEngine.Core.Git;
 
 namespace OnlineOs.AiOrchestrator.Models;
 
@@ -225,6 +226,7 @@ public sealed class RunRecord
     public WorkflowState? LastSuccessfulStage { get; set; }
     public RecoveryRecord? ActiveRecovery { get; set; }
     public bool ImplementationCompleted { get; set; }
+    public List<string> ChangedFiles { get; } = [];
     public bool RemediationCompleted { get; set; }
     public int CurrentValidationCycle { get; set; }
     public int CurrentReviewCycle { get; set; }
@@ -233,6 +235,8 @@ public sealed class RunRecord
     public string? RemediationContextStrategy { get; set; }
     public bool ValidationCompleted { get; set; }
     public bool ReviewCompleted { get; set; }
+    public GitCheckpointDecision? GitCheckpointDecision { get; set; }
+    public GitCheckpointResult? GitCheckpointResult { get; set; }
     public string? AbandonmentReason { get; set; }
     public DateTimeOffset? AbandonedAt { get; set; }
 

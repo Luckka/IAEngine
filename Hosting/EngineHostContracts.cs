@@ -2,6 +2,7 @@ using OnlineOs.AiOrchestrator.Abstractions;
 using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Roadmap;
+using IAEngine.Core.Git;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -14,6 +15,16 @@ public interface IEngineTaskSource
 public interface IEngineMilestoneSource
 {
     Task<RoadmapMilestoneDefinition> LoadMilestoneAsync(string milestoneId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Consumer-owned request construction. The Engine owns when the request is
+/// evaluated; the consumer owns expected files and authorization inputs.
+/// </summary>
+public interface IGitCheckpointRequestSource
+{
+    GitCheckpointRequest CreateForTask(RunRecord run);
+    GitCheckpointRequest CreateForMilestone(string milestoneId, EngineMilestoneExecutionResult result);
 }
 
 public sealed record EngineHostComponentNames(
@@ -37,6 +48,8 @@ public sealed class EngineHostContext
     public string? ExpectedBranch { get; init; }
     public IEngineTaskSource? TaskSource { get; init; }
     public IEngineMilestoneSource? MilestoneSource { get; init; }
+    public IGitCheckpointCoordinator? CheckpointCoordinator { get; init; }
+    public IGitCheckpointRequestSource? CheckpointRequestSource { get; init; }
     public string MilestoneStateDirectory { get; init; } = ".ai-state";
 }
 
@@ -46,7 +59,8 @@ public sealed record EngineExecutionResult(
     WorkflowState State,
     string? FinalDecision,
     bool Succeeded,
-    string? FailureReason);
+    string? FailureReason,
+    GitCheckpointExecutionResult? Checkpoint = null);
 
 public sealed record EngineMilestoneExecutionResult(
     string ProjectId,
@@ -57,4 +71,5 @@ public sealed record EngineMilestoneExecutionResult(
     bool Succeeded,
     bool RequiresHumanApproval,
     string? FailureReason,
-    string StateDirectory);
+    string StateDirectory,
+    GitCheckpointExecutionResult? Checkpoint = null);

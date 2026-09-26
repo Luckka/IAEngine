@@ -3,6 +3,7 @@ using OnlineOs.AiOrchestrator.Configuration;
 using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Pipeline;
 using OnlineOs.AiOrchestrator.Roadmap;
+using IAEngine.Core.Git;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -116,7 +117,75 @@ public sealed class EngineHost
     {
         var definition = await LoadMilestoneAsync(milestoneId, cancellationToken);
         var runner = CreateMilestoneRunner(definition);
-        return ToMilestoneResult(await runner.ApproveAsync(milestoneId, cancellationToken));
+        var result = ToMilestoneResult(await runner.ApproveAsync(milestoneId, cancellationToken));
+        if (context.CheckpointCoordinator is null || context.CheckpointRequestSource is null)
+            return result;
+
+        var request = context.CheckpointRequestSource.CreateForMilestone(milestoneId, result);
+        return result with { Checkpoint = await RequestCheckpointAsync(request, cancellationToken) };
+    }
+
+    public async Task<GitCheckpointExecutionResult> RequestCheckpointAsync(
+        GitCheckpointRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (context.CheckpointCoordinator is null)
+        {
+            var blocked = GitCheckpointPolicy.Evaluate(request) with
+            {
+                Status = GitCheckpointDecisionStatus.Blocked,
+                Reason = "No checkpoint coordinator was supplied; automatic commit is disabled.",
+                CommitAllowed = false
+            };
+            return new(blocked, GitCheckpointResult.Blocked(blocked.Reason, request));
+        }
+
+        var baseDecision = GitCheckpointPolicy.Evaluate(request);
+        if (baseDecision.Status != GitCheckpointDecisionStatus.Allowed)
+            return new(baseDecision, GitCheckpointResult.Blocked(baseDecision.Reason, request));
+
+        GitCheckpointDecision decision;
+        try
+        {
+            decision = await context.CheckpointCoordinator.EvaluateAsync(request, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            decision = GitCheckpointDecision.Invalid($"Checkpoint coordinator evaluation failed: {exception.Message}", request, "coordinator-exception");
+        }
+
+        if (decision.Status != GitCheckpointDecisionStatus.Allowed || !decision.CommitAllowed)
+            return new(decision, GitCheckpointResult.Blocked(decision.Reason, request));
+
+        GitCheckpointResult result;
+        try
+        {
+            result = await context.CheckpointCoordinator.CommitAsync(request, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            result = GitCheckpointResult.Blocked($"Checkpoint commit failed: {exception.Message}", request);
+        }
+
+        if (result.PushPerformed || result.MergePerformed)
+        {
+            result = result with
+            {
+                Succeeded = false,
+                FailureReason = "Checkpoint contract forbids automatic push and merge operations."
+            };
+        }
+        else if (result.Succeeded && string.IsNullOrWhiteSpace(result.CommitSha))
+        {
+            result = result with
+            {
+                Succeeded = false,
+                FailureReason = "A successful checkpoint must return a commit SHA."
+            };
+        }
+
+        return new(decision, result);
     }
 
     private async Task<EngineExecutionResult> ExecuteAsync(DevelopmentTask task, bool dryRun, CancellationToken ct)
@@ -124,6 +193,18 @@ public sealed class EngineHost
         ArgumentNullException.ThrowIfNull(task);
         var result = await orchestrator.ExecuteAsync(task, dryRun, ct);
         var run = result.Run;
+        GitCheckpointExecutionResult? checkpoint = null;
+        if (run.State == WorkflowState.Approved && context.CheckpointCoordinator is not null && context.CheckpointRequestSource is not null)
+        {
+            var request = context.CheckpointRequestSource.CreateForTask(run);
+            checkpoint = await RequestCheckpointAsync(request, ct);
+            run.GitCheckpointDecision = checkpoint.Decision;
+            run.GitCheckpointResult = checkpoint.Result;
+            await context.RunStore.SaveArtifactAsync(run.RunId, "git-checkpoint-decision.json", checkpoint.Decision, ct);
+            if (checkpoint.Result is not null)
+                await context.RunStore.SaveArtifactAsync(run.RunId, "git-checkpoint-result.json", checkpoint.Result, ct);
+            await context.RunStore.SaveAsync(run, ct);
+        }
         var succeeded = run.State is WorkflowState.Approved or WorkflowState.Completed
             && (run.FinalDecision is "PASS" or "DRY_RUN" or "REFERENCE_VALIDATED");
         return new EngineExecutionResult(
@@ -132,7 +213,8 @@ public sealed class EngineHost
             run.State,
             run.FinalDecision,
             succeeded,
-            run.LastFailure?.RootCause);
+            run.LastFailure?.RootCause,
+            checkpoint);
     }
 
     private MilestoneRunner CreateMilestoneRunner(RoadmapMilestoneDefinition definition)

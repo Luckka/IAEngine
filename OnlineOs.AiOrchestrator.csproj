@@ -29,7 +29,6 @@
     <Compile Remove="Pipeline/ValidationRunner.cs" />
     <Compile Remove="Pipeline/VisualConformityReviewGate.cs" />
     <Compile Remove="Pipeline/FailureDiagnosis.cs" />
-    <Compile Remove="Pipeline/GitWorkflowManager.cs" />
     <Compile Remove="Pipeline/MilestoneCatalog.cs" />
     <Compile Remove="Pipeline/Orchestrator.cs" />
     <Compile Remove="Pipeline/RemediationContext.cs" />

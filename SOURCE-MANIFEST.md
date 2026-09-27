@@ -1,18 +1,24 @@
 # Source Manifest
 
-## Discovered implementation
+## Source ownership
 
-`DISCOVERED_SOURCE_ORCHESTRATOR`:
+This repository is the maintained IAEngine source. The original OnlineOS
+repository is an external, read-only compatibility reference and is not a build
+input, runtime input, or source of truth for IAEngine.Core.
 
-external OnlineOS orchestrator source (path intentionally omitted from the public repository)
-
-There was exactly one implementation matching the requested classes and symbols.
-It is the implementation wired to the current CLI, project file, tests, and
-orchestrator README. No competing implementation was found.
+The historical `OnlineOs.AiOrchestrator.*` namespace remains in a small public
+compatibility surface because existing consumers, including InfraSentinel, still
+compile against those contracts. That naming is a compatibility exception, not a
+dependency on the OnlineOS checkout.
 
 ## Project and tests
 
-- `OnlineOs.AiOrchestrator.csproj` — executable .NET 10 project.
+- `OnlineOs.AiOrchestrator.csproj` — legacy compatibility executable .NET 10 project.
+- `src/IAEngine.Core/IAEngine.Core.csproj` — generic Engine assembly; it does not
+  compile `Pipeline/GitWorkflowManager.cs` and has no project reference to the
+  OnlineOS adapter.
+- `src/IAEngine.OnlineOSAdapter/IAEngine.OnlineOSAdapter.csproj` — optional
+  compatibility adapter referencing the Core in one direction.
 - `tests/OnlineOs.AiOrchestrator.Tests.csproj` — xUnit test project referencing the executable.
 - No `.sln` file exists for this orchestrator.
 - Source project target framework: `net10.0`.
@@ -31,8 +37,10 @@ their directories:
 - `Infrastructure/` — process execution, Git service/lifecycle state, JSON, progress,
   run persistence, and workspace boundary.
 - `Models/` — workflow, E2E, and device artifact models.
-- `Pipeline/` — orchestrator, state machine, routing/validation/review/remediation,
-  preflight, health, policy, QA, evidence, and Git workflow components.
+- `Pipeline/` — generic orchestrator, state machine, routing/validation/review/
+  remediation, health, and policy components. QA, Flutter, Patrol, ADB, reference,
+  and legacy Git workflow files are consumer/adapter concerns and are not compiled
+  into IAEngine.Core.
 - `Reference/` — read-only reference inspection and audit aggregation.
 - `Roadmap/` — roadmap catalog, models, state, and milestone runner.
 - `Program.cs` — CLI entry point.
@@ -95,7 +103,9 @@ not all presented together in the README's primary examples.
 
 ## Confirmed pipeline
 
-`CLI → task/milestone loading → Ollama/Qwen routing (fallback) → Claude implementation → deterministic validation → Codex review → Claude remediation → Approved | HumanRequired | Failed → RunStore persistence/recovery`.
+`consumer composition → task/milestone loading → implementation/provider stages →
+deterministic validation → review → bounded remediation → Approved | HumanRequired |
+Failed → RunStore persistence/recovery`.
 
 QA/Patrol is a separate CLI pipeline. Milestone execution wraps task runs and may
 invoke the Git lifecycle manager. The state machine permits routing, implementation,
@@ -104,20 +114,15 @@ the source was not changed.
 
 ## OnlineOS-specific references and paths
 
-- `Program.cs` searches for a Git repository and reports OnlineOS-oriented errors.
-- `Program.cs` expects `ai/roadmap/MILESTONES.json` and `.ai-runs`/`.ai-state` under
-  the resolved workspace.
-- `OllamaTaskRouter.cs` contains the OnlineOS task prompt and OnlineOS documentation
-  index (`ai/skills`, `docs`, `architecture`).
-- `ClaudeAgent.cs` contains OnlineOS repository instructions and references to
-  `AGENTS.md`, `CLAUDE.md`, and `architecture/ENGINEERING_STANDARDS.md`.
-- `EngineeringStandardsPolicy.cs` and tests encode OnlineOS engineering context.
-- `ReferenceInspection.cs` supports an optional read-only OnlineOS reference root
-  via `ONLINEOS_REFERENCE_ROOT` and requires the configured reference branch.
-- `GitWorkflowManager.cs` stages OnlineOS paths (`app`, `tools/ai-orchestrator`,
-  `ai`, `architecture`, `docs`, `README.md`, `.gitignore`) and retains the source
-  Git lifecycle assumptions.
-- QA defaults retain OnlineOS device/emulator names and Flutter `app` paths.
-- `QaReportWriter.cs` and CLI output retain OnlineOS-visible labels.
+- The legacy executable and adapter retain OnlineOS-specific prompts, QA,
+  Flutter/Patrol/ADB, reference inspection, and compatibility configuration.
+- `GitWorkflowManager.cs` remains a legacy executable concern and is intentionally
+  excluded from IAEngine.Core; it is not reused by the generic checkpoint contract.
+- Historical option/model members and the `OnlineOs.AiOrchestrator.*` namespace
+  remain because removing them would be a public breaking change for existing
+  consumers. They are listed explicitly here rather than treated as generic Core
+  capabilities.
 
-These are remaining couplings, not silently generalized in the baseline.
+These are remaining compatibility couplings outside the generic Core composition,
+not hidden build dependencies on the OnlineOS repository. Full removal requires a
+separate major API decision and coordinated consumer migration.

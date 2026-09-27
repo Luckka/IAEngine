@@ -20,7 +20,7 @@ public sealed class RunHealthTests
     public void RoutedReferenceValidationRunIsOrphaned()
     {
         var run = TestData.Run();
-        run.Task = new DevelopmentTask("M3-REFERENCE-VALIDATION", "Read-only OnlineOS reference validation", "Validate reference without implementation.");
+        run.Task = new DevelopmentTask("M3-REFERENCE-VALIDATION", "Read-only OnlineOS reference validation", "Validate reference without implementation.", ExecutionKind: MilestoneExecutionKind.ReferenceValidation);
         run.State = WorkflowState.Routed;
         var assessment = RunHealthEvaluator.Assess(run);
         Assert.Equal(RunHealth.Orphaned, assessment.Health);
@@ -57,7 +57,7 @@ public sealed class RunHealthTests
             var store = new RunStore(root, ".ai-runs");
             var run = TestData.Run();
             run.State = WorkflowState.Routed;
-            run.Task = new DevelopmentTask("M3-REFERENCE-VALIDATION", "Read-only OnlineOS reference validation", "Validate reference without implementation.");
+            run.Task = new DevelopmentTask("M3-REFERENCE-VALIDATION", "Read-only OnlineOS reference validation", "Validate reference without implementation.", ExecutionKind: MilestoneExecutionKind.ReferenceValidation);
             await store.InitializeAsync(run);
             await store.SaveArtifactAsync(run.RunId, "audit.json", new { preserved = true });
             await store.AbandonAsync(run.RunId, "stale read-only validation run");

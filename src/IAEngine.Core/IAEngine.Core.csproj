@@ -3,7 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>OnlineOs.AiOrchestrator</RootNamespace>
+    <RootNamespace>IAEngine.Core</RootNamespace>
     <AssemblyName>IAEngine.Core</AssemblyName>
     <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
   </PropertyGroup>
@@ -27,7 +27,6 @@
     <Compile Include="../../Infrastructure/WorkspaceBoundary.cs" Link="Infrastructure/WorkspaceBoundary.cs" />
     <Compile Include="../../Models/WorkflowModels.cs" Link="Models/WorkflowModels.cs" />
     <Compile Include="../../Pipeline/FailureDiagnosis.cs" Link="Pipeline/FailureDiagnosis.cs" />
-    <Compile Include="../../Pipeline/GitWorkflowManager.cs" Link="Pipeline/GitWorkflowManager.cs" />
     <Compile Include="../../Pipeline/MilestoneCatalog.cs" Link="Pipeline/MilestoneCatalog.cs" />
     <Compile Include="../../Pipeline/Orchestrator.cs" Link="Pipeline/Orchestrator.cs" />
     <Compile Include="../../Pipeline/RemediationContext.cs" Link="Pipeline/RemediationContext.cs" />

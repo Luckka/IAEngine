@@ -211,6 +211,6 @@ public sealed class MilestoneRunner(
         var completed = milestone.Tasks.Where(x => state.Tasks.TryGetValue(x.Id, out var runtime) && runtime.Status == MilestoneTaskStatus.Done).Select(x => $"{x.Id}: DONE").ToArray();
         var description = $"Milestone {milestone.Id} — {milestone.Title}. Task {task.Id} — {task.Title}.\n{task.Description}\n\nScope boundaries: implement only confirmed requirements; do not invent API or backend rules; do not implement future milestone scope.\nCompleted dependencies: {(completed.Length == 0 ? "none" : string.Join(", ", completed))}";
         var domains = taskContextProvider?.GetDomains(milestone, task) ?? ["milestone"];
-        return new DevelopmentTask(task.Id, task.Title, description, Domains: domains, Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria);
+        return new DevelopmentTask(task.Id, task.Title, description, Domains: domains, Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria, ExecutionKind: milestone.ExecutionKind);
     }
 }

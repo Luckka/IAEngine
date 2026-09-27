@@ -42,7 +42,7 @@ public sealed class Orchestrator(
         task = await PrepareReferenceContextAsync(task, actualRunId, ct);
         var run = new RunRecord { RunId = actualRunId, Task = task, StartedAt = DateTimeOffset.UtcNow, MilestoneId = milestoneId, MilestoneTaskId = milestoneTaskId };
         await runs.InitializeAsync(run, ct); // The CREATED record is durable before routing.
-        if (IsReferenceValidationOnly(task))
+        if (task.ExecutionKind == MilestoneExecutionKind.ReferenceValidation)
         {
             run.EndedAt = DateTimeOffset.UtcNow;
             run.FinalDecision = "REFERENCE_VALIDATED";
@@ -331,11 +331,7 @@ public sealed class Orchestrator(
     }
 
     public static bool IsReferenceValidationOnly(DevelopmentTask task)
-    {
-        var text = $"{task.Id} {task.Title} {task.Description}";
-        return text.Contains("read-only", StringComparison.OrdinalIgnoreCase)
-            && (text.Contains("reference", StringComparison.OrdinalIgnoreCase) || text.Contains("validation", StringComparison.OrdinalIgnoreCase));
-    }
+        => task.ExecutionKind == MilestoneExecutionKind.ReferenceValidation;
 
     /// The only workflow executor. New and resumed runs enter here with different
     /// initialization, then use the persisted state and completion markers identically.

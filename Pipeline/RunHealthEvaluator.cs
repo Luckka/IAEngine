@@ -21,7 +21,7 @@ public static class RunHealthEvaluator
         {
             WorkflowState.Created => Active("Route task", "Created maps to routing execution."),
             WorkflowState.Routing => Active("Execute routing", "Routing is in progress and can be resumed."),
-            WorkflowState.Routed when Orchestrator.IsReferenceValidationOnly(run.Task)
+            WorkflowState.Routed when run.Task.ExecutionKind == MilestoneExecutionKind.ReferenceValidation
                 => new(RunHealth.Orphaned, "Read-only reference validation reached Routed; it has no implementation continuation."),
             WorkflowState.Routed => Active("Start implementation", "Routed normally maps to implementation."),
             WorkflowState.Implementing when run.ImplementationCompleted => Active("Run validation", "Implementation is complete and validation is pending."),

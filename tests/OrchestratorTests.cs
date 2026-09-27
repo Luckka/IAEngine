@@ -348,12 +348,28 @@ public sealed class OrchestratorTests
     {
         var agent = new FakeImplementationAgent();
         var reviewer = new FakeReviewer([new ReviewResult(ReviewDecision.Pass, [], "must not run")]);
-        var task = new DevelopmentTask("M3-REFERENCE-VALIDATION", "Read-only OnlineOS reference validation", "Validate monolith reference roots without implementation.");
+        var task = new DevelopmentTask("M3-REFERENCE-VALIDATION", "Read-only OnlineOS reference validation", "Validate monolith reference roots without implementation.", ExecutionKind: MilestoneExecutionKind.ReferenceValidation);
         var result = await Create(agent, reviewer: reviewer).ExecuteAsync(task, false);
         Assert.Equal(WorkflowState.Completed, result.Run.State);
         Assert.Equal("REFERENCE_VALIDATED", result.Run.FinalDecision);
         Assert.Equal(0, agent.ImplementationCalls);
         Assert.Equal(0, reviewer.Calls);
+    }
+
+    [Theory]
+    [InlineData("read-only-cloud-observation-validation")]
+    [InlineData("validation reference inspection")]
+    [InlineData("read-only reference wording")]
+    public async Task TextualMilestoneWordsDoNotChangeNormalExecution(string title)
+    {
+        var agent = new FakeImplementationAgent();
+        var reviewer = new FakeReviewer([new ReviewResult(ReviewDecision.Pass, [], "ok")]);
+        var result = await Create(agent, reviewer: reviewer).ExecuteAsync(
+            new DevelopmentTask("NORMAL-001", title, title), false);
+
+        Assert.NotEqual("REFERENCE_VALIDATED", result.Run.FinalDecision);
+        Assert.True(agent.ImplementationCalls > 0);
+        Assert.True(reviewer.Calls > 0);
     }
 
     [Fact]

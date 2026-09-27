@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using OnlineOs.AiOrchestrator.Models;
 
 namespace OnlineOs.AiOrchestrator.Roadmap;
 
@@ -13,6 +14,7 @@ public sealed class MilestoneDefinition
     public required string Title { get; init; }
     public string? Branch { get; init; }
     public string? Status { get; init; }
+    public MilestoneExecutionKind ExecutionKind { get; init; } = MilestoneExecutionKind.Normal;
     public List<RoadmapTaskDefinition> Tasks { get; init; } = [];
     public List<string> PrototypeStates { get; init; } = [];
 }

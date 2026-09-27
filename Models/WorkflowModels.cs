@@ -7,6 +7,9 @@ namespace OnlineOs.AiOrchestrator.Models;
 public enum WorkflowState { Created, Routing, Routed, Implementing, Validating, Reviewing, Remediating, WaitingRetry, Approved, HumanRequired, Failed, Completed, Abandoned }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
+public enum MilestoneExecutionKind { Normal, ReferenceValidation }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum RunHealth { ValidActive, WaitingRetry, HumanRequired, Terminal, Orphaned, MissingRun, MalformedPointer }
 
 public sealed record RunHealthAssessment(RunHealth Health, string Reason, string? NextAction = null)
@@ -59,7 +62,8 @@ public sealed record DevelopmentTask(
     IReadOnlyList<string>? Skills = null,
     IReadOnlyList<string>? RelevantContext = null,
     IReadOnlyList<string>? AcceptanceCriteria = null,
-    string? ReferenceContext = null);
+    string? ReferenceContext = null,
+    MilestoneExecutionKind ExecutionKind = MilestoneExecutionKind.Normal);
 
 public sealed record RoutingResult(
     [property: JsonPropertyName("type")]

@@ -1,6 +1,6 @@
 # ADR-018 — Arquitetura de memória e Rewind
 
-Status: accepted for M21  
+Status: accepted for M21
 Data: 2026-09-30
 
 ## Contexto

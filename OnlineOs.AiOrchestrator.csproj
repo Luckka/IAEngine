@@ -43,5 +43,6 @@
   <ItemGroup>
     <ProjectReference Include="src/IAEngine.Core/IAEngine.Core.csproj" />
     <ProjectReference Include="src/IAEngine.OnlineOSAdapter/IAEngine.OnlineOSAdapter.csproj" />
+    <ProjectReference Include="src/IAEngine.Memory.Local/IAEngine.Memory.Local.csproj" />
   </ItemGroup>
 </Project>

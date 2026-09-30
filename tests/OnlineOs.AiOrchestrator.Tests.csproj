@@ -6,6 +6,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="IAEngine.Memory.Local.Tests/**/*.cs" />
     <Compile Remove="IAEngine.Core.Tests/**/*.cs" />
     <Compile Remove="ClaudeAgentTests.cs" />
     <Compile Remove="CodexAgentTests.cs" />

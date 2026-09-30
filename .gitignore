@@ -18,3 +18,8 @@ tests/obj/
 *.user
 *.suo
 appsettings.Local.json
+*.db
+*.sqlite
+*.sqlite3
+.ai-memory/
+.memory/

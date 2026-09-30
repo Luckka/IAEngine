@@ -4,6 +4,7 @@ using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Pipeline;
 using OnlineOs.AiOrchestrator.Roadmap;
 using IAEngine.Core.Git;
+using IAEngine.Core.Memory;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -29,6 +30,7 @@ public sealed class EngineHost
     public string ProjectId => context.ProjectId;
     public string WorkspaceRoot => context.WorkspaceRoot;
     public EngineCompositionRuntime Runtime => runtime;
+    public IMemoryEventSink? MemoryEventSink => context.MemoryEventSink;
 
     public static EngineHost Create(EngineHostContext context)
     {
@@ -191,8 +193,12 @@ public sealed class EngineHost
     private async Task<EngineExecutionResult> ExecuteAsync(DevelopmentTask task, bool dryRun, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(task);
+        await AppendMemoryEventAsync(new MemoryEvent(Guid.NewGuid().ToString("N"), MemoryEventType.TaskStarted, System.Text.Json.JsonSerializer.Serialize(new { summary = task.Title, status = MemoryStatus.Active.ToString() }), context.ProjectId, $"pending-{task.Id}", null, task.Id, DateTimeOffset.UtcNow, task.Id, null), ct);
         var result = await orchestrator.ExecuteAsync(task, dryRun, ct);
         var run = result.Run;
+        var taskSucceeded = (run.State is WorkflowState.Approved or WorkflowState.Completed)
+            && run.FinalDecision is "PASS" or "DRY_RUN" or "REFERENCE_VALIDATED";
+        await AppendMemoryEventAsync(new MemoryEvent(Guid.NewGuid().ToString("N"), taskSucceeded ? MemoryEventType.TaskCompleted : MemoryEventType.TaskFailed, System.Text.Json.JsonSerializer.Serialize(new { summary = task.Title, status = taskSucceeded ? MemoryStatus.Approved.ToString() : MemoryStatus.Unknown.ToString() }), context.ProjectId, run.RunId, run.MilestoneId, run.MilestoneTaskId ?? task.Id, DateTimeOffset.UtcNow, run.RunId, null), ct);
         GitCheckpointExecutionResult? checkpoint = null;
         if (run.State == WorkflowState.Approved && context.CheckpointCoordinator is not null && context.CheckpointRequestSource is not null)
         {
@@ -215,6 +221,12 @@ public sealed class EngineHost
             succeeded,
             run.LastFailure?.RootCause,
             checkpoint);
+    }
+
+    private async Task AppendMemoryEventAsync(MemoryEvent memoryEvent, CancellationToken ct)
+    {
+        if (context.MemoryEventSink is not null)
+            await context.MemoryEventSink.AppendAsync(memoryEvent, ct);
     }
 
     private MilestoneRunner CreateMilestoneRunner(RoadmapMilestoneDefinition definition)

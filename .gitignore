@@ -23,3 +23,7 @@ appsettings.Local.json
 *.sqlite3
 .ai-memory/
 .memory/
+
+# Local Codex work-loop reports and generated prompts
+docs/operations/NEXT-CODEX-TASK.md
+docs/status/

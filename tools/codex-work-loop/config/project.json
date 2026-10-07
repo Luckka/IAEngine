@@ -1,0 +1,22 @@
+{
+  "projectId": "iaengine",
+  "projectRoot": "/Users/luckadenubilasevero/Documents/Projects/AI-ENGINEERING-ENGINE",
+  "repository": "IAEngine",
+  "roadmapPath": "ai/roadmap/MILESTONES.json",
+  "statusPath": "docs/STATUS.md",
+  "reportPath": "docs/status/STATUS-iaengine",
+  "protectedBranches": ["main"],
+  "allowedBranchPrefixes": ["feature/", "fix/", "docs/", "chore/"],
+  "buildCommand": "DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/10.0.301/libexec PATH=/opt/homebrew/bin:/usr/bin:/bin dotnet build src/IAEngine.Core/IAEngine.Core.csproj",
+  "testCommand": "DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/10.0.301/libexec PATH=/opt/homebrew/bin:/usr/bin:/bin dotnet test tests/IAEngine.Core.Tests/IAEngine.Core.Tests.csproj",
+  "diffCommand": "git diff --check",
+  "semanticCommitPolicy": "Conventional Commits",
+  "suggestedCommit": "feat: implement the next safe IAEngine slice",
+  "milestoneHint": "M23",
+  "maxIterations": 3,
+  "maxFilesPerIteration": 12,
+  "maxCommitsPerIteration": 1,
+  "allowAws": false,
+  "allowExternalInfrastructure": false,
+  "requireSemanticCommits": true
+}

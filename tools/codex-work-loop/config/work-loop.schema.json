@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["projectId", "projectRoot", "roadmapPath", "statusPath", "protectedBranches", "allowedBranchPrefixes", "buildCommand", "testCommand", "maxIterations", "maxFilesPerIteration", "maxCommitsPerIteration", "allowAws", "allowExternalInfrastructure", "requireSemanticCommits"],
+  "properties": {
+    "projectId": { "type": "string", "minLength": 1 },
+    "projectRoot": { "type": "string", "minLength": 1 },
+    "repository": { "type": "string" },
+    "roadmapPath": { "type": "string", "minLength": 1 },
+    "statusPath": { "type": "string", "minLength": 1 },
+    "reportPath": { "type": "string" },
+    "protectedBranches": { "type": "array", "items": { "type": "string" } },
+    "allowedBranchPrefixes": { "type": "array", "items": { "type": "string" } },
+    "buildCommand": { "type": "string", "minLength": 1 },
+    "testCommand": { "type": "string", "minLength": 1 },
+    "diffCommand": { "type": "string" },
+    "semanticCommitPolicy": { "type": "string" },
+    "suggestedCommit": { "type": "string" },
+    "milestoneHint": { "type": "string" },
+    "maxIterations": { "type": "integer", "minimum": 1 },
+    "maxFilesPerIteration": { "type": "integer", "minimum": 1 },
+    "maxCommitsPerIteration": { "type": "integer", "minimum": 1 },
+    "allowAws": { "const": false },
+    "allowExternalInfrastructure": { "const": false },
+    "requireSemanticCommits": { "const": true }
+  },
+  "additionalProperties": false
+}

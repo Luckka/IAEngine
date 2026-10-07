@@ -12,7 +12,6 @@
   "diffCommand": "git diff --check",
   "semanticCommitPolicy": "Conventional Commits",
   "suggestedCommit": "feat: implement the next safe IAEngine slice",
-  "milestoneHint": "M23",
   "maxIterations": 3,
   "maxMilestones": 3,
   "maxFilesPerIteration": 12,

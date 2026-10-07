@@ -6,7 +6,7 @@ parse_common_args "$@"
 load_config
 validate_repository
 working_tree_state
-TASK_FILE="$(resolve_path docs/operations/NEXT-CODEX-TASK.md)"
+TASK_FILE="$(generated_prompt_file)"
 mkdir -p "$(dirname "$TASK_FILE")"
 SUMMARY="$(milestone_summary)"
 CURRENT="$(printf '%s\n' "$SUMMARY" | sed -n 's/^current=//p')"
@@ -61,4 +61,5 @@ Stop for dirty/unexplained state, failed validation, secrets, external access, E
 
 Report branch, commit, files, build/tests, blockers, AWS/profile state, OnlineOS state and recommendation. Suggested semantic commit: $(config_get "$CONFIG" suggestedCommit).
 EOF
+cp "$TASK_FILE" "$(resolve_path docs/operations/NEXT-CODEX-TASK.md)"
 printf '%s\n' "$TASK_FILE"

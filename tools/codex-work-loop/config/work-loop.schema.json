@@ -26,6 +26,7 @@
     "stopOnAwsRequest": { "type": "boolean" },
     "autoPush": { "type": "boolean" },
     "autoCreatePullRequest": { "type": "boolean" },
+    "stopOnPullRequestReview": { "type": "boolean" },
     "prBaseBranch": { "type": "string" },
     "allowAws": { "const": false },
     "allowExternalInfrastructure": { "const": false },

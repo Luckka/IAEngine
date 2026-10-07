@@ -21,6 +21,7 @@
   "stopOnAwsRequest": true,
   "autoPush": false,
   "autoCreatePullRequest": false,
+  "stopOnPullRequestReview": false,
   "prBaseBranch": "main",
   "allowAws": false,
   "allowExternalInfrastructure": false,

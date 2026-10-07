@@ -45,6 +45,7 @@ load_config() {
   MAX_MILESTONES="$(config_get "$CONFIG" maxMilestones)"; STOP_ON_TEST_FAILURE="$(config_get "$CONFIG" stopOnTestFailure)"
   STOP_ON_ARCH="$(config_get "$CONFIG" stopOnArchitectureDecision)"; STOP_ON_AWS="$(config_get "$CONFIG" stopOnAwsRequest)"
   AUTO_PUSH="$(config_get "$CONFIG" autoPush)"; AUTO_PR="$(config_get "$CONFIG" autoCreatePullRequest)"
+  STOP_ON_PR_REVIEW="$(config_get "$CONFIG" stopOnPullRequestReview)"
   PR_BASE="$(config_get "$CONFIG" prBaseBranch)"
   [[ -n "$MAX_MILESTONES" ]] || MAX_MILESTONES="$MAX_ITERATIONS"
   [[ -n "$STOP_ON_TEST_FAILURE" ]] || STOP_ON_TEST_FAILURE=true
@@ -52,6 +53,7 @@ load_config() {
   [[ -n "$STOP_ON_AWS" ]] || STOP_ON_AWS=true
   [[ -n "$AUTO_PUSH" ]] || AUTO_PUSH=false
   [[ -n "$AUTO_PR" ]] || AUTO_PR=false
+  [[ -n "$STOP_ON_PR_REVIEW" ]] || STOP_ON_PR_REVIEW=false
   [[ -n "$PR_BASE" ]] || PR_BASE=main
   [[ "$ALLOW_AWS" == false && "$ALLOW_EXTERNAL" == false && "$REQUIRE_SEMANTIC" == true ]] || die "unsafe policy in configuration"
   [[ "$MAX_ITERATIONS" =~ ^[1-9][0-9]*$ && "$MAX_MILESTONES" =~ ^[1-9][0-9]*$ && "$MAX_FILES" =~ ^[1-9][0-9]*$ && "$MAX_COMMITS" =~ ^[1-9][0-9]*$ ]] || die "limits must be positive"
@@ -105,6 +107,13 @@ milestone_summary() {
 }
 assert_clean_for_execution() { working_tree_state; [[ "$WORKTREE" == clean ]] || die "working tree is dirty"; }
 assert_execution_environment() { [[ -z "${AWS_PROFILE:-}" && -z "${AWS_DEFAULT_PROFILE:-}" ]] || die "AWS profile environment is present; execution blocked"; }
-assert_no_blocking_markers() { local f="$(status_file)"; [[ ! -f "$f" ]] || ! rg -n 'ENGINE_CONTRACT_GAP[=:][[:space:]]*true|HUMAN_DECISION_REQUIRED[=:][[:space:]]*true|HUMAN_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null || die "blocking status marker"; }
+assert_no_blocking_markers() {
+  local f="$(status_file)"
+  [[ ! -f "$f" ]] && return 0
+  rg -n 'ENGINE_CONTRACT_GAP[=:][[:space:]]*true|HUMAN_DECISION_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null && die "blocking status marker"
+  if rg -n 'HUMAN_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null && ! rg -n 'PR_REVIEW_PENDING[=:][[:space:]]*true' "$f" >/dev/null; then
+    die "blocking status marker"
+  fi
+}
 changed_file_count() { { git -C "$PROJECT" diff --name-only "$1" HEAD; git -C "$PROJECT" ls-files --others --exclude-standard; } | sort -u | wc -l | tr -d ' '; }
 conventional_commit() { [[ "$1" =~ ^(feat|fix|docs|test|chore|refactor|perf|build|ci)(\([[:alnum:]_.-]+\))?:[[:space:]].+$ ]]; }

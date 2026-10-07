@@ -163,6 +163,16 @@ earlier output in the same session.
 
 ## Definition of Done
 
+## M23 local Codex work-loop policy
+
+- The reusable work loop lives under `tools/codex-work-loop`, outside runtime Core.
+- Never access or modify OnlineOS, AWS, Terraform, MCP, providers, or external infrastructure.
+- Never change `main`, force-push, merge automatically, or create destructive Git operations.
+- Use one coherent slice per cycle, with bounded iterations/files/commits and sequential build/test validation.
+- Stop on dirty unexplained state, failed validation, `ENGINE_CONTRACT_GAP`, `HUMAN_DECISION_REQUIRED`, secrets, or protected branches.
+- Generated task/status files are local reports and must not contain credentials, tokens, customer data, or runtime artifacts.
+- Codex CLI invocation must use only syntax reported by the installed `codex --help` and `codex exec --help`.
+
 A feature is done when, and only when, all of the following are true — see
 `ai/skills/flutter-feature/SKILL.md` for the full workflow this comes out of:
 

@@ -30,6 +30,20 @@ The configured maximum is an upper bound. A failed build/test, changed branch,
 dirty unexpected tree, contract gap, human decision or security-policy
 violation stops the loop before another cycle.
 
+## Autonomous push and PR-link cycle
+
+```bash
+tools/codex-work-loop/codex-work-loop.sh \
+  --project /path/to/project --iterations 20 --auto-push --auto-pr
+```
+
+The two flags are intentionally coupled. Each validated cycle pushes only the
+current feature branch, creates a PR with `gh pr create` when authenticated,
+or records a GitHub branch PR URL when `gh` is unavailable. The loop never
+merges. It writes `docs/status/LOOP-<timestamp>.md` and
+`docs/status/PULL-REQUESTS.md`, then generates the next prompt before the next
+cycle.
+
 ## Recovery and review
 
 Inspect the generated status report, Codex last message and Git diff. Do not

@@ -4,6 +4,31 @@ namespace IAEngine.Core.Tests;
 
 public sealed class RecoveryContractTests
 {
+    [Theory]
+    [InlineData(RecoveryReason.ValidationFailure)]
+    [InlineData(RecoveryReason.ProviderFailure)]
+    [InlineData(RecoveryReason.Timeout)]
+    [InlineData(RecoveryReason.Cancellation)]
+    [InlineData(RecoveryReason.Crash)]
+    [InlineData(RecoveryReason.Interrupted)]
+    public async Task RecoveryReasonsPersistAsDistinctAttempts(RecoveryReason reason)
+    {
+        var workspace = Directory.CreateTempSubdirectory("iaengine-recovery-reason-");
+        try
+        {
+            var key = new ExecutionKey("project-a", "milestone-1", "task-1", "execution-1");
+            var service = new ExecutionRecoveryService(new FileRecoveryStore(workspace.FullName));
+            await service.StartAsync(key);
+            var attempt = await service.StartAttemptAsync(key, reason);
+            var result = await service.RecordAttemptAsync(key, attempt with { Status = RecoveryStatus.Failed, EndedAt = DateTimeOffset.UtcNow });
+
+            Assert.Single(result.Attempts);
+            Assert.Equal(reason, result.Attempts[0].Reason);
+            Assert.Equal(RecoveryStatus.Failed, result.Status);
+        }
+        finally { workspace.Delete(true); }
+    }
+
     [Fact]
     public async Task ExecutionKeyIsStableAndRestartReloadsAttempts()
     {

@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted for incremental M22 implementation; terminal milestone continuation
-remains an integration follow-up.
+Accepted for M22; terminal milestone continuation is exposed through the
+generic EngineHost integration.
 
 ## Decision
 
@@ -21,6 +21,6 @@ the only execution owners. No consumer-specific recovery executor is added.
 - Recovery state survives process restart when the consumer uses the file store.
 - Duplicate artifacts and checkpoints are rejected logically by identity.
 - Rewind remains separate and read-only.
-- A later change is still required to reopen terminal task runs through the
-  central workflow state machine; this is intentionally not hidden in M22's
-  persistence layer.
+- `EngineHost.RecoverMilestoneAsync` reopens a persisted task through the
+  existing `MilestoneRunner` and `Orchestrator`; the persistence layer remains
+  independent of execution mechanics.

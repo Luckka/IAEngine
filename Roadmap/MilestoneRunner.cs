@@ -54,6 +54,17 @@ public sealed class MilestoneRunner(
         return await DriveAsync(definition, state, resumed, ct);
     }
 
+    public async Task<MilestoneRuntimeState?> RecoverAsync(RunRecord persistedRun, string reason, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(persistedRun.MilestoneId)) return null;
+        var definition = roadmap.Get(persistedRun.MilestoneId);
+        var state = await stateStore.LoadAsync(ct) ?? throw new InvalidOperationException("Milestone runtime state is missing for recovery.");
+        if (state.MilestoneId != definition.Id || state.CurrentTaskId != persistedRun.MilestoneTaskId)
+            throw new InvalidOperationException("Persisted run and milestone runtime state do not refer to the same task.");
+        var resumed = await orchestrator.RecoverAsync(persistedRun, reason, ct);
+        return await DriveAsync(definition, state, resumed, ct);
+    }
+
     public async Task<MilestoneRuntimeState> ApproveAsync(string milestoneId, CancellationToken ct = default)
     {
         var state = await stateStore.LoadAsync(ct) ?? throw new InvalidOperationException($"No runtime state exists for milestone '{milestoneId}'.");

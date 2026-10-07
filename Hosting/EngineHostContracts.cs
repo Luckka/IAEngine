@@ -4,6 +4,7 @@ using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Roadmap;
 using IAEngine.Core.Git;
 using IAEngine.Core.Memory;
+using IAEngine.Core.Recovery;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -54,6 +55,7 @@ public sealed class EngineHostContext
     public string MilestoneStateDirectory { get; init; } = ".ai-state";
     public IMemoryEventSink? MemoryEventSink { get; init; }
     public IMemoryContextBuilder? MemoryContextBuilder { get; init; }
+    public IExecutionRecoveryService? RecoveryService { get; init; }
 }
 
 public sealed record EngineExecutionResult(

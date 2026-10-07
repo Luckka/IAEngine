@@ -42,8 +42,20 @@ load_config() {
   MAX_FILES="$(config_get "$CONFIG" maxFilesPerIteration)"; MAX_COMMITS="$(config_get "$CONFIG" maxCommitsPerIteration)"
   ALLOW_AWS="$(config_get "$CONFIG" allowAws)"; ALLOW_EXTERNAL="$(config_get "$CONFIG" allowExternalInfrastructure)"
   REQUIRE_SEMANTIC="$(config_get "$CONFIG" requireSemanticCommits)"; MILESTONE_HINT="$(config_get "$CONFIG" milestoneHint)"
+  MAX_MILESTONES="$(config_get "$CONFIG" maxMilestones)"; STOP_ON_TEST_FAILURE="$(config_get "$CONFIG" stopOnTestFailure)"
+  STOP_ON_ARCH="$(config_get "$CONFIG" stopOnArchitectureDecision)"; STOP_ON_AWS="$(config_get "$CONFIG" stopOnAwsRequest)"
+  AUTO_PUSH="$(config_get "$CONFIG" autoPush)"; AUTO_PR="$(config_get "$CONFIG" autoCreatePullRequest)"
+  PR_BASE="$(config_get "$CONFIG" prBaseBranch)"
+  [[ -n "$MAX_MILESTONES" ]] || MAX_MILESTONES="$MAX_ITERATIONS"
+  [[ -n "$STOP_ON_TEST_FAILURE" ]] || STOP_ON_TEST_FAILURE=true
+  [[ -n "$STOP_ON_ARCH" ]] || STOP_ON_ARCH=true
+  [[ -n "$STOP_ON_AWS" ]] || STOP_ON_AWS=true
+  [[ -n "$AUTO_PUSH" ]] || AUTO_PUSH=false
+  [[ -n "$AUTO_PR" ]] || AUTO_PR=false
+  [[ -n "$PR_BASE" ]] || PR_BASE=main
   [[ "$ALLOW_AWS" == false && "$ALLOW_EXTERNAL" == false && "$REQUIRE_SEMANTIC" == true ]] || die "unsafe policy in configuration"
-  [[ "$MAX_ITERATIONS" =~ ^[1-9][0-9]*$ && "$MAX_FILES" =~ ^[1-9][0-9]*$ && "$MAX_COMMITS" =~ ^[1-9][0-9]*$ ]] || die "limits must be positive"
+  [[ "$MAX_ITERATIONS" =~ ^[1-9][0-9]*$ && "$MAX_MILESTONES" =~ ^[1-9][0-9]*$ && "$MAX_FILES" =~ ^[1-9][0-9]*$ && "$MAX_COMMITS" =~ ^[1-9][0-9]*$ ]] || die "limits must be positive"
+  [[ "$AUTO_PUSH" == false && "$AUTO_PR" == false ]] || [[ "$AUTO_PUSH" == true && "$AUTO_PR" == true ]] || die "auto push and PR must be enabled together"
   printf '%s\n' "$BUILD_COMMAND $TEST_COMMAND $DIFF_COMMAND" | rg -i '(^|[[:space:];|&])(aws|terraform|mcp|ssh|scp|curl|git[[:space:]]+push[[:space:]]+--force|force-push|git[[:space:]]+reset[[:space:]]+--hard|git[[:space:]]+clean)([[:space:]]|$)' >/dev/null && die "external or destructive command in configuration" || true
 }
 
@@ -68,6 +80,19 @@ report_file() {
     printf '%s-%s.md\n' "$path" "$(date -u '+%Y%m%dT%H%M%SZ')"
   fi
 }
+generated_prompt_file() { printf '%s/docs/operations/generated/NEXT-MILESTONE-PROMPT.md\n' "$PROJECT"; }
+loop_report_file() { printf '%s/docs/status/LOOP-%s.md\n' "$PROJECT" "$(date -u '+%Y%m%dT%H%M%SZ')"; }
+pr_registry_file() { printf '%s/docs/status/PULL-REQUESTS.md\n' "$PROJECT"; }
+remote_pr_url() {
+  local remote="$1" branch="$2" normalized
+  normalized="${remote%.git}"
+  case "$normalized" in
+    git@github.com:*) printf 'https://github.com/%s/pull/new/%s\n' "${normalized#git@github.com:}" "$branch";;
+    https://github.com/*) printf '%s/pull/new/%s\n' "$normalized" "$branch";;
+    *) printf 'manual-pr-required:%s\n' "$branch";;
+  esac
+}
+sanitize_report_text() { sed -E 's/(token|secret|password|api.?key|authorization)[^[:space:]]*/[redacted]/Ig'; }
 
 milestone_summary() {
   local f="$(roadmap_file)"
@@ -80,6 +105,6 @@ milestone_summary() {
 }
 assert_clean_for_execution() { working_tree_state; [[ "$WORKTREE" == clean ]] || die "working tree is dirty"; }
 assert_execution_environment() { [[ -z "${AWS_PROFILE:-}" && -z "${AWS_DEFAULT_PROFILE:-}" ]] || die "AWS profile environment is present; execution blocked"; }
-assert_no_blocking_markers() { local f="$(status_file)"; [[ ! -f "$f" ]] || ! rg -n 'ENGINE_CONTRACT_GAP[=:][[:space:]]*true|HUMAN_DECISION_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null || die "blocking status marker"; }
+assert_no_blocking_markers() { local f="$(status_file)"; [[ ! -f "$f" ]] || ! rg -n 'ENGINE_CONTRACT_GAP[=:][[:space:]]*true|HUMAN_DECISION_REQUIRED[=:][[:space:]]*true|HUMAN_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null || die "blocking status marker"; }
 changed_file_count() { { git -C "$PROJECT" diff --name-only "$1" HEAD; git -C "$PROJECT" ls-files --others --exclude-standard; } | sort -u | wc -l | tr -d ' '; }
 conventional_commit() { [[ "$1" =~ ^(feat|fix|docs|test|chore|refactor|perf|build|ci)(\([[:alnum:]_.-]+\))?:[[:space:]].+$ ]]; }

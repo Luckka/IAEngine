@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["projectId", "projectRoot", "roadmapPath", "statusPath", "protectedBranches", "allowedBranchPrefixes", "buildCommand", "testCommand", "maxIterations", "maxFilesPerIteration", "maxCommitsPerIteration", "allowAws", "allowExternalInfrastructure", "requireSemanticCommits"],
+  "required": ["projectId", "projectRoot", "roadmapPath", "statusPath", "protectedBranches", "allowedBranchPrefixes", "buildCommand", "testCommand", "maxIterations", "maxMilestones", "maxFilesPerIteration", "maxCommitsPerIteration", "allowAws", "allowExternalInfrastructure", "requireSemanticCommits"],
   "properties": {
     "projectId": { "type": "string", "minLength": 1 },
     "projectRoot": { "type": "string", "minLength": 1 },
@@ -18,8 +18,15 @@
     "suggestedCommit": { "type": "string" },
     "milestoneHint": { "type": "string" },
     "maxIterations": { "type": "integer", "minimum": 1 },
+    "maxMilestones": { "type": "integer", "minimum": 1 },
     "maxFilesPerIteration": { "type": "integer", "minimum": 1 },
     "maxCommitsPerIteration": { "type": "integer", "minimum": 1 },
+    "stopOnTestFailure": { "type": "boolean" },
+    "stopOnArchitectureDecision": { "type": "boolean" },
+    "stopOnAwsRequest": { "type": "boolean" },
+    "autoPush": { "type": "boolean" },
+    "autoCreatePullRequest": { "type": "boolean" },
+    "prBaseBranch": { "type": "string" },
     "allowAws": { "const": false },
     "allowExternalInfrastructure": { "const": false },
     "requireSemanticCommits": { "const": true }

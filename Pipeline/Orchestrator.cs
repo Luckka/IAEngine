@@ -237,6 +237,14 @@ public sealed class Orchestrator(
         return (await ExecutePersistedRunAsync(run, false, ct, true)).Run;
     }
 
+    public async Task<RunRecord> RecoverAsync(RunRecord run, string reason, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        stateMachine.ReopenForGenericRecovery(run, reason);
+        await runs.SaveAsync(run, ct);
+        return (await ExecutePersistedRunAsync(run, false, ct, true)).Run;
+    }
+
     public async Task<RunRecord> RetryHumanRequiredAsync(RunRecord run, CancellationToken ct = default)
     {
         if (run.State != WorkflowState.HumanRequired)

@@ -5,6 +5,7 @@ using OnlineOs.AiOrchestrator.Pipeline;
 using OnlineOs.AiOrchestrator.Roadmap;
 using IAEngine.Core.Git;
 using IAEngine.Core.Memory;
+using IAEngine.Core.Recovery;
 using RoadmapMilestoneDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Hosting;
@@ -31,6 +32,83 @@ public sealed class EngineHost
     public string WorkspaceRoot => context.WorkspaceRoot;
     public EngineCompositionRuntime Runtime => runtime;
     public IMemoryEventSink? MemoryEventSink => context.MemoryEventSink;
+    public bool RecoveryConfigured => context.RecoveryService is not null;
+
+    public Task<RecoveryExecution> StartRecoveryAsync(
+        ExecutionKey key,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().StartAsync(key, cancellationToken);
+
+    public Task<RecoveryExecution?> GetRecoveryAsync(
+        ExecutionKey key,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().GetAsync(key, cancellationToken);
+
+    public async Task<IReadOnlyList<RecoveryAttempt>> GetRecoveryAttemptsAsync(
+        ExecutionKey key,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = await RequireRecovery().GetAsync(key, cancellationToken);
+        return execution?.Attempts ?? [];
+    }
+
+    public Task<RecoveryAttempt> StartRecoveryAttemptAsync(
+        ExecutionKey key,
+        RecoveryReason reason,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().StartAttemptAsync(key, reason, cancellationToken);
+
+    public Task<RecoveryExecution> RecordRecoveryAttemptAsync(
+        ExecutionKey key,
+        RecoveryAttempt attempt,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().RecordAttemptAsync(key, attempt, cancellationToken);
+
+    public Task<RecoveryExecution> RecoverAsync(
+        ExecutionKey key,
+        RecoveryReason reason,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().RecoverAsync(key, reason, cancellationToken);
+
+    public async Task<EngineMilestoneExecutionResult> RecoverMilestoneAsync(
+        ExecutionKey key,
+        RecoveryReason reason,
+        CancellationToken cancellationToken = default)
+    {
+        var recovery = await RequireRecovery().GetAsync(key, cancellationToken)
+            ?? throw new InvalidOperationException($"Recovery execution '{key}' was not found.");
+        if (recovery.Status == RecoveryStatus.HumanRequired && recovery.Approvals.Count == 0)
+            throw new InvalidOperationException("Human approval is required before milestone recovery.");
+        await RequireRecovery().RecoverAsync(key, reason, cancellationToken);
+        var persistedRun = await context.RunStore.LoadAsync(key.ExecutionId, cancellationToken)
+            ?? throw new InvalidOperationException($"Persisted run '{key.ExecutionId}' was not found.");
+        if (context.MilestoneSource is null)
+            throw new InvalidOperationException("No milestone source was supplied by the consumer.");
+        var definition = await context.MilestoneSource.LoadMilestoneAsync(key.MilestoneId, cancellationToken);
+        var runner = CreateMilestoneRunner(definition);
+        var state = await runner.RecoverAsync(persistedRun, $"Generic recovery: {reason}.", cancellationToken)
+            ?? throw new InvalidOperationException("Milestone recovery returned no state.");
+        return ToMilestoneResult(state);
+    }
+
+    public Task<RecoveryExecution> ApproveRecoveryAsync(
+        ExecutionKey key,
+        string approvalId,
+        string reason,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().ApproveHumanRequiredAsync(key, approvalId, reason, cancellationToken);
+
+    public Task<RecoveryExecution> RecordRecoveryArtifactAsync(
+        ExecutionKey key,
+        RecoveryArtifactIdentity artifact,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().RecordArtifactAsync(key, artifact, cancellationToken);
+
+    public Task<RecoveryExecution> RecordRecoveryCheckpointAsync(
+        ExecutionKey key,
+        RecoveryCheckpointIdentity checkpoint,
+        CancellationToken cancellationToken = default)
+        => RequireRecovery().RecordCheckpointAsync(key, checkpoint, cancellationToken);
 
     public static EngineHost Create(EngineHostContext context)
     {
@@ -270,4 +348,7 @@ public sealed class EngineHost
             throw new CompositionResolutionException(
                 $"Project '{context.ProjectId}' configuration is invalid: {string.Join(" ", errors)}", []);
     }
+
+    private IExecutionRecoveryService RequireRecovery()
+        => context.RecoveryService ?? throw new InvalidOperationException("Recovery is not configured for this EngineHost.");
 }

@@ -78,6 +78,27 @@ public sealed class WorkflowStateMachine
         return Reopen(run, reason);
     }
 
+    public StateTransition ReopenForGenericRecovery(RunRecord run, string reason)
+    {
+        if (run.State is not (WorkflowState.Failed or WorkflowState.HumanRequired or WorkflowState.Abandoned))
+            throw new InvalidOperationException("Only terminal or HumanRequired runs can be reopened by generic recovery.");
+        var resume = run.ImplementationCompleted ? WorkflowState.Validating : WorkflowState.Implementing;
+        var transition = new StateTransition(run.State, resume, DateTimeOffset.UtcNow, reason);
+        run.State = resume;
+        run.Transitions.Add(transition);
+        run.EndedAt = null;
+        run.FinalDecision = null;
+        run.ActiveRecovery = null;
+        run.ResumeAfter = null;
+        run.ResumeStage = null;
+        run.LastFailure = null;
+        run.ValidationCompleted = false;
+        run.ReviewCompleted = false;
+        run.RemediationCompleted = false;
+        run.LatestValidationResults.Clear();
+        return transition;
+    }
+
     private static bool HasActionableEngineeringFailure(RunRecord run)
     {
         if (run.LastFailure?.Category is FailureCategory.ProductAmbiguity or FailureCategory.ArchitectureDecisionRequired

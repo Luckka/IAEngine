@@ -79,12 +79,18 @@ public sealed class EngineHost
             ?? throw new InvalidOperationException($"Recovery execution '{key}' was not found.");
         if (recovery.Status == RecoveryStatus.HumanRequired && recovery.Approvals.Count == 0)
             throw new InvalidOperationException("Human approval is required before milestone recovery.");
-        await RequireRecovery().RecoverAsync(key, reason, cancellationToken);
         var persistedRun = await context.RunStore.LoadAsync(key.ExecutionId, cancellationToken)
             ?? throw new InvalidOperationException($"Persisted run '{key.ExecutionId}' was not found.");
         if (context.MilestoneSource is null)
             throw new InvalidOperationException("No milestone source was supplied by the consumer.");
         var definition = await context.MilestoneSource.LoadMilestoneAsync(key.MilestoneId, cancellationToken);
+        var existingState = await new RoadmapStateStore(context.WorkspaceRoot, context.MilestoneStateDirectory).LoadAsync(cancellationToken);
+        if (existingState is not null
+            && existingState.MilestoneId == key.MilestoneId
+            && existingState.Status is MilestoneRuntimeStatus.CompleteAwaitingApproval or MilestoneRuntimeStatus.Approved)
+            return ToMilestoneResult(existingState);
+
+        await RequireRecovery().RecoverAsync(key, reason, cancellationToken);
         var runner = CreateMilestoneRunner(definition);
         var state = await runner.RecoverAsync(persistedRun, $"Generic recovery: {reason}.", cancellationToken)
             ?? throw new InvalidOperationException("Milestone recovery returned no state.");
@@ -196,6 +202,12 @@ public sealed class EngineHost
         CancellationToken cancellationToken = default)
     {
         var definition = await LoadMilestoneAsync(milestoneId, cancellationToken);
+        var existingState = await new RoadmapStateStore(context.WorkspaceRoot, context.MilestoneStateDirectory).LoadAsync(cancellationToken);
+        if (existingState is not null
+            && existingState.MilestoneId == milestoneId
+            && existingState.Status == MilestoneRuntimeStatus.Approved)
+            return ToMilestoneResult(existingState);
+
         var runner = CreateMilestoneRunner(definition);
         var result = ToMilestoneResult(await runner.ApproveAsync(milestoneId, cancellationToken));
         if (context.CheckpointCoordinator is null || context.CheckpointRequestSource is null)

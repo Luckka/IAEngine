@@ -25,4 +25,7 @@ drives the run to `Approved`, `HumanRequired`, or `Failed`.
 `CompleteAwaitingApproval` is a milestone checkpoint state, not a recoverable
 task failure. `Approved` runs are not reopened by generic recovery. Repeated
 artifact/checkpoint writes with the same identity are no-ops, and repeated
-recovery calls preserve the execution key and historical attempts.
+recovery calls preserve the execution key and historical attempts. Once the
+milestone is `CompleteAwaitingApproval` or `Approved`, the host returns the
+persisted state instead of reopening a completed task; repeated approval does
+not invoke checkpoint execution again.

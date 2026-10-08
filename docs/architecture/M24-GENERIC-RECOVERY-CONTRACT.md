@@ -18,8 +18,11 @@ reopen path. No second state machine is introduced.
 
 Artifacts, checkpoints, and recovery attempts are idempotent by stable identity.
 Previous task evidence remains persisted. Retry counters and recovery attempts are
-separate. Memory `RewindAsync` remains a read-only historical projection and is
-not a recovery operation.
+separate. At the host boundary, repeating recovery after the milestone is
+`CompleteAwaitingApproval` or `Approved` returns persisted state without
+reopening a completed task. Repeating milestone approval likewise does not
+invoke checkpoint execution a second time. Memory `RewindAsync` remains a
+read-only historical projection and is not a recovery operation.
 
 The contract performs no provider, AWS, Terraform, OnlineOS, or commit activity.
 Consumers own storage location and component composition.

@@ -61,7 +61,11 @@ public sealed class MilestoneRunner(
         var state = await stateStore.LoadAsync(ct) ?? throw new InvalidOperationException("Milestone runtime state is missing for recovery.");
         if (state.MilestoneId != definition.Id || state.CurrentTaskId != persistedRun.MilestoneTaskId)
             throw new InvalidOperationException("Persisted run and milestone runtime state do not refer to the same task.");
-        var resumed = await orchestrator.RecoverAsync(persistedRun, reason, ct);
+        RestoreForRecovery(state, persistedRun, reason);
+        await stateStore.SaveAsync(state, ct);
+        var resumed = IsTerminal(persistedRun.State)
+            ? await orchestrator.RecoverAsync(persistedRun, reason, ct)
+            : await orchestrator.ContinueAsync(persistedRun, ct);
         return await DriveAsync(definition, state, resumed, ct);
     }
 
@@ -216,6 +220,27 @@ public sealed class MilestoneRunner(
         if (state is null || state.MilestoneId != prior.Id || state.Status != MilestoneRuntimeStatus.Approved)
             throw new InvalidOperationException($"Milestone {definition.Id} is blocked until checkpoint approval for {prior.Id}.");
     }
+
+    private static void RestoreForRecovery(MilestoneRuntimeState state, RunRecord persistedRun, string reason)
+    {
+        if (state.Status == MilestoneRuntimeStatus.Running) return;
+        if (state.CurrentTaskId is null || !state.Tasks.TryGetValue(state.CurrentTaskId, out var taskState))
+            throw new InvalidOperationException($"Milestone recovery has no resumable task for '{state.MilestoneId}'.");
+        if (taskState.Status == MilestoneTaskStatus.Done)
+            throw new InvalidOperationException($"Completed task '{state.CurrentTaskId}' cannot be recovered.");
+
+        state.Status = MilestoneRuntimeStatus.Running;
+        state.RequiresHumanCheckpoint = false;
+        state.FailureReason = $"Recovery requested: {reason}";
+        state.RequiredAction = null;
+        state.ActiveRunId = persistedRun.RunId;
+        taskState.Status = MilestoneTaskStatus.Running;
+        // Keep task failure evidence and the original run identity; recovery is a
+        // continuation of the persisted execution, not a new task attempt.
+    }
+
+    private static bool IsTerminal(WorkflowState state)
+        => state is WorkflowState.Failed or WorkflowState.HumanRequired or WorkflowState.Abandoned;
 
     private DevelopmentTask CompileTask(MilestoneDefinition milestone, RoadmapTaskDefinition task, MilestoneRuntimeState state)
     {

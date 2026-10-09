@@ -46,7 +46,7 @@ write_cycle_report() {
   mkdir -p "$(dirname "$report")"
   {
     printf '# Work Loop Cycle %s\n\n' "$cycle"
-    printf '%s\n' "- Project: $PROJECT_ID" "- Milestone: $current" "- Next milestone: $next" "- Branch: $BRANCH" "- Commit: $COMMIT" "- PR link: ${pr_url:-not-created}" "- Build: passed" "- Tests: passed" "- SOLID/Clean Architecture review: required by prompt" "- AWS accessed: false" "- AWS profile: none" "- OnlineOS modified: false" "- HUMAN_REQUIRED: false" "- STOP_REASON: none"
+    printf '%s\n' "- Project: $PROJECT_ID" "- Milestone: $current" "- Next milestone: $next" "- Branch: $BRANCH" "- Commit: $COMMIT" "- PR link: ${pr_url:-not-created}" "- PR_REVIEW_PENDING: ${pr_url:+true}" "- Build: passed" "- Tests: passed" "- SOLID/Clean Architecture review: required by prompt" "- AWS accessed: false" "- AWS profile: none" "- OnlineOS modified: false" "- HUMAN_REQUIRED: false" "- STOP_REASON: none"
     printf '\n## Commits\n%s\n\n## Files\n%s\n' "${commits:-none}" "${changed:-none}"
   } | sanitize_report_text > "$report"
 }
@@ -80,7 +80,7 @@ for ((cycle=1; cycle<=ITERATIONS; cycle++)); do
   codex exec --cd "$PROJECT" --sandbox workspace-write --ask-for-approval on-request --output-last-message "$OUTPUT_FILE" "$PROMPT"
   validate_repository
   [[ "$BRANCH" != main ]] || die "protected branch after Codex"
-  if rg -n 'AWS|Terraform|MCP|OnlineOS|ENGINE_CONTRACT_GAP|HUMAN_REQUIRED|HUMAN_DECISION_REQUIRED' "$OUTPUT_FILE" >/dev/null 2>&1; then die "Codex report contains a protected or human-required condition"; fi
+  if rg -n 'AWS|Terraform|MCP|OnlineOS|ENGINE_CONTRACT_GAP|HUMAN_DECISION_REQUIRED|STOP_REASON=(SECRET|CONFLICT|TEST_FAILURE|ARCHITECTURE)' "$OUTPUT_FILE" >/dev/null 2>&1; then die "Codex report contains a protected or human-required condition"; fi
   changed="$(changed_file_count "$BASE_COMMIT")"
   [[ "$changed" -le "$MAX_FILES" ]] || die "file limit exceeded"
   commits="$(git -C "$PROJECT" rev-list --count "$BASE_COMMIT"..HEAD)"

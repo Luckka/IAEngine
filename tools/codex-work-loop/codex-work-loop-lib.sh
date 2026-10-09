@@ -45,6 +45,7 @@ load_config() {
   MAX_MILESTONES="$(config_get "$CONFIG" maxMilestones)"; STOP_ON_TEST_FAILURE="$(config_get "$CONFIG" stopOnTestFailure)"
   STOP_ON_ARCH="$(config_get "$CONFIG" stopOnArchitectureDecision)"; STOP_ON_AWS="$(config_get "$CONFIG" stopOnAwsRequest)"
   AUTO_PUSH="$(config_get "$CONFIG" autoPush)"; AUTO_PR="$(config_get "$CONFIG" autoCreatePullRequest)"
+  STOP_ON_PR_REVIEW="$(config_get "$CONFIG" stopOnPullRequestReview)"
   PR_BASE="$(config_get "$CONFIG" prBaseBranch)"
   [[ -n "$MAX_MILESTONES" ]] || MAX_MILESTONES="$MAX_ITERATIONS"
   [[ -n "$STOP_ON_TEST_FAILURE" ]] || STOP_ON_TEST_FAILURE=true
@@ -52,6 +53,7 @@ load_config() {
   [[ -n "$STOP_ON_AWS" ]] || STOP_ON_AWS=true
   [[ -n "$AUTO_PUSH" ]] || AUTO_PUSH=false
   [[ -n "$AUTO_PR" ]] || AUTO_PR=false
+  [[ -n "$STOP_ON_PR_REVIEW" ]] || STOP_ON_PR_REVIEW=false
   [[ -n "$PR_BASE" ]] || PR_BASE=main
   [[ "$ALLOW_AWS" == false && "$ALLOW_EXTERNAL" == false && "$REQUIRE_SEMANTIC" == true ]] || die "unsafe policy in configuration"
   [[ "$MAX_ITERATIONS" =~ ^[1-9][0-9]*$ && "$MAX_MILESTONES" =~ ^[1-9][0-9]*$ && "$MAX_FILES" =~ ^[1-9][0-9]*$ && "$MAX_COMMITS" =~ ^[1-9][0-9]*$ ]] || die "limits must be positive"
@@ -97,14 +99,21 @@ sanitize_report_text() { sed -E 's/(token|secret|password|api.?key|authorization
 milestone_summary() {
   local f="$(roadmap_file)"
   if [[ -f "$f" && "$f" == *.json ]]; then
-    python3 -c 'import json,sys; ms=json.load(open(sys.argv[1])).get("milestones",[]); h=sys.argv[2]; a=next((m for m in ms if m.get("id")==h),None) if h else None; a=a or ({"id":h,"title":"Configured milestone","status":"in_progress"} if h else None) or next((m for m in ms if m.get("status") not in ("completed","approved")),None); i=ms.index(a) if a in ms else -1; n=ms[i+1] if i>=0 and i+1<len(ms) else None; print("current=%s|%s|%s"%(a.get("id","unknown") if a else "unknown",a.get("title","") if a else "",a.get("status","unknown") if a else "unknown")); print("next=%s|%s|%s"%(n.get("id","unknown") if n else "human-review",n.get("title","Determine next milestone") if n else "Determine next milestone",n.get("status","unknown") if n else "unknown"))' "$f" "$MILESTONE_HINT"
+    python3 -c 'import json,re,sys; ms=json.load(open(sys.argv[1])).get("milestones",[]); h=sys.argv[2] or (re.search(r"feature/m([0-9]+)",sys.argv[3],re.I).group(1) if re.search(r"feature/m([0-9]+)",sys.argv[3],re.I) else ""); h=("M"+h) if h and not h.upper().startswith("M") else h; a=next((m for m in ms if m.get("id")==h),None) if h else None; a=a or ({"id":h,"title":"Current feature milestone","status":"in_progress"} if h else None) or next((m for m in ms if m.get("status") not in ("completed","approved")),None); i=ms.index(a) if a in ms else -1; n=ms[i+1] if i>=0 and i+1<len(ms) else None; print("current=%s|%s|%s"%(a.get("id","unknown") if a else "unknown",a.get("title","") if a else "",a.get("status","unknown") if a else "unknown")); print("next=%s|%s|%s"%(n.get("id","unknown") if n else "human-review",n.get("title","Determine next milestone") if n else "Determine next milestone",n.get("status","unknown") if n else "unknown"))' "$f" "$MILESTONE_HINT" "$BRANCH"
   elif [[ -f "$f" ]]; then
     local current="${MILESTONE_HINT:-$(rg '^##+[[:space:]]+M[0-9]+' "$f" | tail -1 | sed -E 's/^#+[[:space:]]+([^—-]+).*/\1/' | xargs || true)}"
-    printf 'current=%s|Markdown roadmap|unknown\nnext=human-review|Determine from roadmap|unknown\n' "${current:-${MILESTONE_HINT:-unknown}}"
+    current="${MILESTONE_HINT:-$(printf '%s' "$BRANCH" | sed -nE 's#.*feature/m([0-9]+).*#M\1#p')}"; printf 'current=%s|Markdown roadmap|unknown\nnext=human-review|Determine from roadmap|unknown\n' "${current:-unknown}"
   else printf 'current=%s|Configured hint|unknown\nnext=human-review|Roadmap missing|blocked\n' "${MILESTONE_HINT:-unknown}"; fi
 }
 assert_clean_for_execution() { working_tree_state; [[ "$WORKTREE" == clean ]] || die "working tree is dirty"; }
 assert_execution_environment() { [[ -z "${AWS_PROFILE:-}" && -z "${AWS_DEFAULT_PROFILE:-}" ]] || die "AWS profile environment is present; execution blocked"; }
-assert_no_blocking_markers() { local f="$(status_file)"; [[ ! -f "$f" ]] || ! rg -n 'ENGINE_CONTRACT_GAP[=:][[:space:]]*true|HUMAN_DECISION_REQUIRED[=:][[:space:]]*true|HUMAN_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null || die "blocking status marker"; }
+assert_no_blocking_markers() {
+  local f="$(status_file)"
+  [[ ! -f "$f" ]] && return 0
+  rg -n 'ENGINE_CONTRACT_GAP[=:][[:space:]]*true|HUMAN_DECISION_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null && die "blocking status marker"
+  if rg -n 'HUMAN_REQUIRED[=:][[:space:]]*true' "$f" >/dev/null && ! rg -n 'PR_REVIEW_PENDING[=:][[:space:]]*true' "$f" >/dev/null; then
+    die "blocking status marker"
+  fi
+}
 changed_file_count() { { git -C "$PROJECT" diff --name-only "$1" HEAD; git -C "$PROJECT" ls-files --others --exclude-standard; } | sort -u | wc -l | tr -d ' '; }
 conventional_commit() { [[ "$1" =~ ^(feat|fix|docs|test|chore|refactor|perf|build|ci)(\([[:alnum:]_.-]+\))?:[[:space:]].+$ ]]; }

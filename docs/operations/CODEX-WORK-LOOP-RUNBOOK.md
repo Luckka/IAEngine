@@ -50,3 +50,6 @@ Inspect the generated status report, Codex last message and Git diff. Do not
 use Rewind as execution recovery. If the task exposes an IAEngine contract gap,
 stop and record it for human review. No AWS, Terraform, MCP, provider or
 OnlineOS operation is supported by this loop.
+
+PR review is asynchronous. An open PR does not block the next cycle; only a
+real execution, security, architecture, contract or milestone-scope block does.

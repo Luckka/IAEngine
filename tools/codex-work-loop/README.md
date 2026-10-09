@@ -19,3 +19,8 @@ touches OnlineOS.
 otherwise it returns the safe GitHub branch PR URL. The loop stops on dirty
 state, a protected branch, failed validation, contract gaps, human decisions,
 secrets, or scope expansion.
+
+Pull request review is asynchronous and is not a loop stop condition. The loop
+may continue to the next independently identified milestone while previous
+branches remain open. A missing or ambiguous next milestone is still a real
+stop condition; the loop never invents implementation scope to bypass it.

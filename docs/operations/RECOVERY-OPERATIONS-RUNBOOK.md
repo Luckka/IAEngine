@@ -9,6 +9,10 @@ Persist artifact and checkpoint identities before requesting the corresponding
 operation. Repeating the same identity is safe and must not create a second
 artifact, checkpoint or logical commit request.
 
+At the milestone host boundary, repeat recovery and approval calls are safe
+after `CompleteAwaitingApproval` or `Approved`: persisted state is returned and
+no task or checkpoint is executed again.
+
 For `HumanRequired`, stop. Inspect the persisted reason and approve the exact
 execution key explicitly. Do not use `RewindAsync` to resume work: Rewind only
 constructs historical context. A terminal execution still needs the existing

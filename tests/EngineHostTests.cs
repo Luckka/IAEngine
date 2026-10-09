@@ -4,6 +4,7 @@ using OnlineOs.AiOrchestrator.Hosting;
 using OnlineOs.AiOrchestrator.Infrastructure;
 using OnlineOs.AiOrchestrator.Models;
 using OnlineOs.AiOrchestrator.Roadmap;
+using IAEngine.Core.Recovery;
 using RoadmapDefinition = OnlineOs.AiOrchestrator.Roadmap.MilestoneDefinition;
 
 namespace OnlineOs.AiOrchestrator.Tests;
@@ -141,7 +142,74 @@ public sealed class EngineHostTests
         }
     }
 
-    private static EngineHost CreateHost(string workspace, IEngineMilestoneSource source, bool reviewPasses = true)
+    [Fact]
+    public async Task GenericConsumerHostExposesPersistedRecoveryWithoutCreatingASecondRunner()
+    {
+        var workspace = Directory.CreateTempSubdirectory("iaengine-host-recovery-");
+        try
+        {
+            var host = CreateHost(workspace.FullName, new FakeMilestoneSource(SyntheticMilestone()), recovery: true);
+            var key = new ExecutionKey("generic-consumer", "SYN-MILESTONE", "SYN-001", "execution-1");
+
+            Assert.True(host.RecoveryConfigured);
+            await host.StartRecoveryAsync(key);
+            var attempt = await host.StartRecoveryAttemptAsync(key, RecoveryReason.Crash);
+            await host.RecordRecoveryAttemptAsync(key, attempt with { Status = RecoveryStatus.Failed, EndedAt = DateTimeOffset.UtcNow });
+
+            var recovered = await host.RecoverAsync(key, RecoveryReason.Crash);
+            var attempts = await host.GetRecoveryAttemptsAsync(key);
+
+            Assert.Equal(RecoveryStatus.Recovered, recovered.Status);
+            Assert.Equal(2, attempts.Count);
+            Assert.All(attempts, item => Assert.Equal(key.Value, item.ExecutionKey));
+        }
+        finally
+        {
+            workspace.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task GenericConsumerHostRecoversHumanRequiredMilestoneOnlyAfterExplicitApproval()
+    {
+        var workspace = Directory.CreateTempSubdirectory("iaengine-milestone-recovery-");
+        try
+        {
+            var host = CreateHost(workspace.FullName, new FakeMilestoneSource(SyntheticMilestone()), reviewPasses: false, recovery: true);
+            var blocked = await host.RunMilestoneAsync("SYN-MILESTONE");
+            var runtime = await new RoadmapStateStore(workspace.FullName, ".ai-state-host").LoadAsync();
+            var runId = runtime!.Tasks["SYN-001"].RunId!;
+            var key = new ExecutionKey("generic-consumer", "SYN-MILESTONE", "SYN-001", runId);
+
+            await host.StartRecoveryAsync(key);
+            var attempt = await host.StartRecoveryAttemptAsync(key, RecoveryReason.HumanRequired);
+            await host.RecordRecoveryAttemptAsync(key, attempt with
+            {
+                Status = RecoveryStatus.HumanRequired,
+                ApprovalRequired = true,
+                EndedAt = DateTimeOffset.UtcNow
+            });
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => host.RecoverMilestoneAsync(key, RecoveryReason.HumanRequired));
+            await host.ApproveRecoveryAsync(key, "approval-1", "Approved deterministic local recovery.");
+
+            var recovered = await host.RecoverMilestoneAsync(key, RecoveryReason.HumanRequired);
+            var persisted = await new RunStore(workspace.FullName, ".ai-runs-host").LoadAsync(runId);
+            var persistedJson = await File.ReadAllTextAsync(Path.Combine(workspace.FullName, ".ai-runs-host", runId, "run.json"));
+
+            Assert.Equal(MilestoneRuntimeStatus.HumanRequired, recovered.Status);
+            Assert.NotNull(persisted);
+            Assert.Equal(WorkflowState.HumanRequired, persisted!.State);
+            Assert.Contains("\"from\": \"HumanRequired\"", persistedJson, StringComparison.Ordinal);
+            Assert.Contains("\"to\": \"Validating\"", persistedJson, StringComparison.Ordinal);
+        }
+        finally
+        {
+            workspace.Delete(true);
+        }
+    }
+
+    private static EngineHost CreateHost(string workspace, IEngineMilestoneSource source, bool reviewPasses = true, bool recovery = false)
     {
         var options = Options(workspace);
         options = new AppOptions
@@ -169,7 +237,8 @@ public sealed class EngineHostTests
             RunStore = new RunStore(workspace, ".ai-runs-host"),
             Git = new FakeGit(workspace),
             MilestoneSource = source,
-            MilestoneStateDirectory = ".ai-state-host"
+            MilestoneStateDirectory = ".ai-state-host",
+            RecoveryService = recovery ? new ExecutionRecoveryService(new FileRecoveryStore(workspace, ".ai-state-host")) : null
         });
     }
 

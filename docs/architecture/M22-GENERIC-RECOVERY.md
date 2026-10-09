@@ -24,11 +24,12 @@ are harmless.
 
 ## Boundaries and limitations
 
-The contract does not execute tasks, call providers, create commits, or access
-AWS. It does not use memory `RewindAsync`; Rewind remains a read-only contextual
-projection. Full terminal-run continuation still requires wiring the persisted
-record into the existing runner through a separately reviewed orchestration
-change.
+The contract does not execute providers, create commits, or access AWS. It does
+not use memory `RewindAsync`; Rewind remains a read-only contextual projection.
+`EngineHost.RecoverMilestoneAsync` wires a persisted recovery record into the
+existing `MilestoneRunner` and `Orchestrator`; consumers provide the persisted
+run, milestone source and recovery service. The host does not create a second
+state machine.
 
 The schema is currently version 1. Breaking changes require an explicit
 migration and compatibility tests. Error text is caller-supplied and must be

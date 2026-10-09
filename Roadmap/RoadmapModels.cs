@@ -5,6 +5,10 @@ namespace OnlineOs.AiOrchestrator.Roadmap;
 
 public sealed class RoadmapDocument
 {
+    public string WorkflowVersion { get; init; } = "1.0";
+    public string? SourceWorkflow { get; init; }
+    public string? VisualAuthority { get; init; }
+    public string? FunctionalAuthority { get; init; }
     public List<MilestoneDefinition> Milestones { get; init; } = [];
 }
 
@@ -17,6 +21,7 @@ public sealed class MilestoneDefinition
     public MilestoneExecutionKind ExecutionKind { get; init; } = MilestoneExecutionKind.Normal;
     public List<RoadmapTaskDefinition> Tasks { get; init; } = [];
     public List<string> PrototypeStates { get; init; } = [];
+    public string? SourceWorkflow { get; init; }
 }
 
 public sealed class RoadmapTaskDefinition
@@ -31,6 +36,15 @@ public sealed class RoadmapTaskDefinition
     public List<string> Skills { get; init; } = [];
     public List<string> PrototypeStates { get; init; } = [];
     public bool PrototypeConformityRequired { get; init; }
+    public string? Status { get; init; }
+    public List<string> ReferenceImageIds { get; init; } = [];
+    public List<string> RequiredFlutterScreens { get; init; } = [];
+    public List<string> LaravelReferences { get; init; } = [];
+    public List<string> RequiredInteractions { get; init; } = [];
+    public List<string> ApiContracts { get; init; } = [];
+    public List<string> TestFixtures { get; init; } = [];
+    public List<string> VerificationRequirements { get; init; } = [];
+    public List<string> EvidencePaths { get; init; } = [];
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

@@ -81,6 +81,14 @@ public sealed class MilestoneRunner(
         return state;
     }
 
+    /// <summary>Builds the next executable task without changing milestone state.</summary>
+    public DevelopmentTask CompileNextTaskForDryRun(MilestoneDefinition definition, MilestoneRuntimeState state)
+    {
+        var next = roadmap.SelectNextTask(definition, state)
+            ?? throw new InvalidOperationException($"Milestone '{definition.Id}' has no executable pending task.");
+        return CompileTask(definition, next, state);
+    }
+
     private async Task<MilestoneRuntimeState> DriveAsync(MilestoneDefinition definition, MilestoneRuntimeState state, RunRecord? completedRun, CancellationToken ct)
     {
         if (completedRun is not null)
@@ -201,7 +209,16 @@ public sealed class MilestoneRunner(
             throw new InvalidOperationException($"Another milestone runtime state is active: {state.MilestoneId}.");
         if (state is not null) return state;
         state = new MilestoneRuntimeState { MilestoneId = definition.Id };
-        foreach (var task in definition.Tasks) state.Tasks[task.Id] = new MilestoneTaskRuntime();
+        foreach (var task in definition.Tasks)
+        {
+            var completed = string.Equals(task.Status, "completed", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(task.Status, "done", StringComparison.OrdinalIgnoreCase);
+            state.Tasks[task.Id] = new MilestoneTaskRuntime
+            {
+                Status = completed ? MilestoneTaskStatus.Done : MilestoneTaskStatus.Pending,
+                CompletedAt = completed ? DateTimeOffset.UtcNow : null
+            };
+        }
         await stateStore.SaveAsync(state, ct);
         return state;
     }
@@ -245,7 +262,8 @@ public sealed class MilestoneRunner(
     private DevelopmentTask CompileTask(MilestoneDefinition milestone, RoadmapTaskDefinition task, MilestoneRuntimeState state)
     {
         var completed = milestone.Tasks.Where(x => state.Tasks.TryGetValue(x.Id, out var runtime) && runtime.Status == MilestoneTaskStatus.Done).Select(x => $"{x.Id}: DONE").ToArray();
-        var description = $"Milestone {milestone.Id} — {milestone.Title}. Task {task.Id} — {task.Title}.\n{task.Description}\n\nScope boundaries: implement only confirmed requirements; do not invent API or backend rules; do not implement future milestone scope.\nCompleted dependencies: {(completed.Length == 0 ? "none" : string.Join(", ", completed))}";
+        var workflowContext = $"\nMaster workflow references:\n- Images: {(task.ReferenceImageIds.Count == 0 ? "none" : string.Join(", ", task.ReferenceImageIds))}\n- Flutter screens: {(task.RequiredFlutterScreens.Count == 0 ? "none" : string.Join(", ", task.RequiredFlutterScreens))}\n- Laravel references: {(task.LaravelReferences.Count == 0 ? "none" : string.Join(", ", task.LaravelReferences))}\n- Interactions: {(task.RequiredInteractions.Count == 0 ? "none" : string.Join("; ", task.RequiredInteractions))}\n- API contracts: {(task.ApiContracts.Count == 0 ? "none confirmed" : string.Join("; ", task.ApiContracts))}\n- Fixtures: {(task.TestFixtures.Count == 0 ? "none" : string.Join("; ", task.TestFixtures))}\n- Verification: {(task.VerificationRequirements.Count == 0 ? "deterministic validation" : string.Join("; ", task.VerificationRequirements))}\n- Evidence paths: {(task.EvidencePaths.Count == 0 ? "docs/implementation-workflow" : string.Join(", ", task.EvidencePaths))}";
+        var description = $"Milestone {milestone.Id} — {milestone.Title}. Task {task.Id} — {task.Title}.\n{task.Description}{workflowContext}\n\nScope boundaries: implement only confirmed requirements; do not invent API or backend rules; do not implement future milestone scope. The master workflow is the planning authority, the Laravel reference is functional authority, and the listed images are visual authority. Do not use the legacy HTML prototype.\nCompleted dependencies: {(completed.Length == 0 ? "none" : string.Join(", ", completed))}";
         var domains = taskContextProvider?.GetDomains(milestone, task) ?? ["milestone"];
         return new DevelopmentTask(task.Id, task.Title, description, Domains: domains, Risk: task.RiskHints.FirstOrDefault(), Skills: task.Skills, RelevantContext: task.ContextHints, AcceptanceCriteria: task.AcceptanceCriteria, ExecutionKind: milestone.ExecutionKind);
     }

@@ -124,7 +124,8 @@ if (args[0] == "preflight")
 }
 
 var commandStore = new RunStore(repository, options.Orchestrator.RunsDirectory);
-var roadmapPath = Path.Combine(repository, "ai", "roadmap", "MILESTONES.json");
+var roadmapPath = Path.GetFullPath(options.Project.WorkflowPath, repository);
+var workflowStateDirectory = options.Project.WorkflowStateDirectory;
 if (args[0] == "qa")
 {
     if (args.Length < 2 || args[1].Equals("help", StringComparison.OrdinalIgnoreCase))
@@ -177,7 +178,7 @@ if (args[0] == "milestone")
 {
     if (args.Length < 2) { Console.Error.WriteLine("Usage: milestone <ID> | milestone approve <ID>"); return 2; }
     var roadmap = RoadmapCatalog.Load(roadmapPath);
-    var stateStore = new RoadmapStateStore(repository);
+    var stateStore = new RoadmapStateStore(repository, workflowStateDirectory);
     var definition = roadmap.Get(args[1].Equals("approve", StringComparison.OrdinalIgnoreCase) || args[1].Equals("finalize", StringComparison.OrdinalIgnoreCase) ? args.ElementAtOrDefault(2) ?? "" : args[1]);
     var gitDefinition = new OnlineOs.AiOrchestrator.Models.MilestoneDefinition(
         definition.Id,
@@ -209,7 +210,8 @@ if (args[0] == "milestone")
         }
         return finalization.Succeeded ? 0 : 1;
     }
-    if (!args[1].Equals("approve", StringComparison.OrdinalIgnoreCase))
+    var milestoneDryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+    if (!args[1].Equals("approve", StringComparison.OrdinalIgnoreCase) && !milestoneDryRun)
     {
         var prepared = await gitWorkflow.PrepareMilestoneAsync(gitDefinition);
         if (!prepared.Succeeded) { Console.Error.WriteLine($"Git lifecycle: {prepared.State}\n{prepared.Summary}"); return 1; }
@@ -220,6 +222,20 @@ if (args[0] == "milestone")
         new ReviewPolicy(options.ReviewPolicy), new WorkflowStateMachine(), options,
         milestoneProgress, router as IFailureDiagnoser, referenceContextProvider, gitDefinition.Branch);
     var milestoneRunner = new MilestoneRunner(roadmap, stateStore, commandStore, milestoneOrchestrator, gitWorkflow, Console.Out, taskContextProvider: new OnlineOsMilestoneTaskContextProvider());
+    if (milestoneDryRun)
+    {
+        var dryState = await stateStore.LoadAsync() ?? new MilestoneRuntimeState { MilestoneId = definition.Id };
+        foreach (var roadmapTask in definition.Tasks.Where(x => !dryState.Tasks.ContainsKey(x.Id)))
+            dryState.Tasks[roadmapTask.Id] = new MilestoneTaskRuntime
+            {
+                Status = string.Equals(roadmapTask.Status, "completed", StringComparison.OrdinalIgnoreCase) ? MilestoneTaskStatus.Done : MilestoneTaskStatus.Pending
+            };
+        var dryTask = milestoneRunner.CompileNextTaskForDryRun(definition, dryState);
+        var dryResult = await milestoneOrchestrator.ExecuteAsync(dryTask, true, runId: Orchestrator.CreateRunId(), milestoneId: definition.Id, milestoneTaskId: dryTask.Id);
+        if (dryResult.Plan is not null)
+            Console.WriteLine($"Dry run workflow: {definition.Id}/{dryTask.Id}\n{dryTask.Description}\nRouter: {dryResult.Plan.Routing.TaskType} | risk={dryResult.Plan.Routing.Risk} | pipeline={dryResult.Plan.Routing.RecommendedPipeline}\nCodex: {dryResult.Plan.CodexReviewMode}");
+        return dryResult.Run.State == WorkflowState.Failed ? 1 : 0;
+    }
     try
     {
         if (args[1].Equals("approve", StringComparison.OrdinalIgnoreCase))
@@ -245,7 +261,7 @@ if (args[0] == "status")
     var health = await commandStore.AssessActiveAsync();
     var active = health.Health is RunHealth.Terminal or RunHealth.MissingRun or RunHealth.MalformedPointer ? null : await commandStore.FindActiveAsync();
     Console.WriteLine("----------------------------------------\nONLINEOS ORCHESTRATOR STATUS\n----------------------------------------");
-    var roadmapState = await new RoadmapStateStore(repository).LoadAsync();
+    var roadmapState = await new RoadmapStateStore(repository, workflowStateDirectory).LoadAsync();
     if (roadmapState is not null)
     {
         var catalog = RoadmapCatalog.Load(roadmapPath);
@@ -319,7 +335,7 @@ if (args[0] == "continue")
     var active = await commandStore.FindActiveAsync();
     if (active is null)
     {
-        var resumableMilestone = await new RoadmapStateStore(repository).LoadAsync();
+        var resumableMilestone = await new RoadmapStateStore(repository, workflowStateDirectory).LoadAsync();
         if (resumableMilestone?.ActiveRunId is not null)
             active = await commandStore.LoadAsync(resumableMilestone.ActiveRunId);
     }
@@ -355,7 +371,7 @@ if (args[0] == "continue")
     RunRecord resumed;
     if (active.MilestoneId is not null)
     {
-        var milestoneRunner = new MilestoneRunner(RoadmapCatalog.Load(roadmapPath), new RoadmapStateStore(repository), commandStore, resumeOrchestrator, gitWorkflow, Console.Out, taskContextProvider: new OnlineOsMilestoneTaskContextProvider());
+        var milestoneRunner = new MilestoneRunner(RoadmapCatalog.Load(roadmapPath), new RoadmapStateStore(repository, workflowStateDirectory), commandStore, resumeOrchestrator, gitWorkflow, Console.Out, taskContextProvider: new OnlineOsMilestoneTaskContextProvider());
         await milestoneRunner.ContinueAsync(active);
         resumed = active;
     }

@@ -17,6 +17,10 @@ public sealed class ProjectProfileOptions
     public RemediationLimitOptions RemediationLimits { get; init; } = new();
     public int TimeoutSeconds { get; init; } = 1800;
     public List<string> ContextPaths { get; init; } = [];
+    /// <summary>Repository-relative executable plan selected by the project profile.</summary>
+    public string WorkflowPath { get; init; } = "ai/roadmap/MILESTONES.json";
+    /// <summary>Repository-relative durable milestone-state directory.</summary>
+    public string WorkflowStateDirectory { get; init; } = ".ai-state";
     public ProjectCompositionOptions Composition { get; init; } = new();
 
     public bool IsOnlineOsCompatibilityProfile => string.Equals(Id, "onlineos-mobile", StringComparison.OrdinalIgnoreCase);

@@ -40,12 +40,12 @@ public sealed class GitWorkflowManager(
             }
             if (relation == BranchRelation.Behind)
             {
-                await RunAsync(["switch", milestone.BaseBranch], ct);
-                await RunAsync(["merge", "--ff-only", $"origin/{milestone.BaseBranch}"], ct);
-                baseSha = await RevParseAsync(milestone.BaseBranch, ct);
+                // The base branch may be checked out in another worktree. Use the
+                // authoritative remote ref as the immutable branch point instead
+                // of switching or moving the occupied local branch.
+                baseSha = remoteBase;
             }
 
-            await RunAsync(["switch", milestone.BaseBranch], ct);
             var exists = await ExistsAsync($"refs/heads/{milestone.Branch}", ct);
             if (!exists) await RunAsync(["switch", "-c", milestone.Branch, baseSha], ct);
             else
@@ -98,17 +98,17 @@ public sealed class GitWorkflowManager(
             else metadata = metadata with { FeaturePushSha = remoteFeature, GitLifecycleState = GitLifecycleState.FeaturePushed };
 
             await SaveAsync(milestone.Id, metadata, runId, ct);
-            await RunAsync(["switch", milestone.BaseBranch], ct);
             await RunAsync(["fetch", "origin"], ct);
             var developer = await RevParseAsync(milestone.BaseBranch, ct);
             var remoteDeveloper = await RevParseAsync($"origin/{milestone.BaseBranch}", ct);
             var relation = await RelationAsync(developer, remoteDeveloper, ct);
-            if (relation == BranchRelation.Behind) { await RunAsync(["merge", "--ff-only", $"origin/{milestone.BaseBranch}"], ct); developer = await RevParseAsync(milestone.BaseBranch, ct); }
+            if (relation == BranchRelation.Behind) developer = remoteDeveloper;
             else if (relation is BranchRelation.Ahead or BranchRelation.Diverged) return await HumanAsync(milestone.Id, metadata, $"{milestone.BaseBranch} is {relation.ToString().ToLowerInvariant()} of origin/{milestone.BaseBranch}.", ct);
             metadata = metadata with { DeveloperPreMergeSha = developer, GitLifecycleState = GitLifecycleState.MergingToDeveloper };
             await SaveAsync(milestone.Id, metadata, runId, ct);
-            await RunAsync(["merge", "--no-edit", milestone.Branch], ct);
-            metadata = metadata with { MergeCommitSha = await RevParseAsync("HEAD", ct), MergeTimestamp = DateTimeOffset.UtcNow, GitLifecycleState = GitLifecycleState.Merged };
+            var mergeCommit = await CreateMergeCommitWithoutCheckoutAsync(milestone.BaseBranch, developer, milestone.Branch, milestone.CommitMessage ?? $"feat({milestone.Id.ToLowerInvariant()}): complete {milestone.Title.ToLowerInvariant()}", ct);
+            await RunAsync(["update-ref", $"refs/heads/{milestone.BaseBranch}", mergeCommit, developer], ct);
+            metadata = metadata with { MergeCommitSha = mergeCommit, MergeTimestamp = DateTimeOffset.UtcNow, GitLifecycleState = GitLifecycleState.Merged };
             await SaveAsync(milestone.Id, metadata, runId, ct);
             var postMerge = await validation.RunAsync(ct);
             if (postMerge.Any(x => x.Required && !x.Passed))
@@ -117,7 +117,7 @@ public sealed class GitWorkflowManager(
                 return await HumanAsync(milestone.Id, metadata with { PostMergeValidation = false, GitFailure = $"Developer post-merge validation failed: {failed}." }, $"Developer post-merge validation failed ({failed}); developer was not pushed.", ct);
             }
             metadata = metadata with { PostMergeValidation = true, DeveloperPostMergeSha = await RevParseAsync("HEAD", ct), GitLifecycleState = GitLifecycleState.PostMergeValidated };
-            await RunAsync(["push", "origin", milestone.BaseBranch], ct);
+            await RunAsync(["push", "origin", $"{milestone.BaseBranch}:{milestone.BaseBranch}"], ct);
             var originAfter = await RevParseAsync($"origin/{milestone.BaseBranch}", ct);
             metadata = metadata with { OriginDeveloperSha = originAfter, GitLifecycleState = GitLifecycleState.Published, PushTimestamp = DateTimeOffset.UtcNow };
             await SaveAsync(milestone.Id, metadata, runId, ct);
@@ -150,7 +150,16 @@ public sealed class GitWorkflowManager(
     private async Task<bool> ExistsAsync(string name, CancellationToken ct) => (await RunAsync(["show-ref", "--verify", "--quiet", name], ct, true)).Succeeded;
     private async Task<bool> IsAncestorAsync(string ancestor, string descendant, CancellationToken ct) => (await RunAsync(["merge-base", "--is-ancestor", ancestor, descendant], ct, true)).Succeeded;
     private async Task<BranchRelation> RelationAsync(string local, string remote, CancellationToken ct) { var localAncestor = await IsAncestorAsync(local, remote, ct); var remoteAncestor = await IsAncestorAsync(remote, local, ct); return localAncestor && remoteAncestor ? BranchRelation.Equal : localAncestor ? BranchRelation.Behind : remoteAncestor ? BranchRelation.Ahead : BranchRelation.Diverged; }
-    private async Task<ProcessResult> RunAsync(IReadOnlyList<string> args, CancellationToken ct, bool acceptFailure = false) { if (args.Any(x => x is "--force" or "--force-with-lease" or "--hard" or "clean" or "rebase" or "stash" or "-D" or "--amend")) throw new InvalidOperationException("Prohibited Git operation requested."); var r = await processes.RunAsync(new ProcessSpec("git", args, repository, Timeout: TimeSpan.FromMinutes(5)), ct); if (!acceptFailure && !r.Succeeded) throw new HumanRequiredException($"git {string.Join(' ', args)} failed: {r.StandardError.Trim()}"); return r; }
+    private async Task<string> CreateMergeCommitWithoutCheckoutAsync(string baseBranch, string baseSha, string featureBranch, string message, CancellationToken ct)
+    {
+        var tree = await RunAsync(["merge-tree", "--write-tree", baseSha, featureBranch], ct);
+        var treeSha = tree.StandardOutput.Trim().Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(treeSha) || treeSha.Length < 7)
+            throw new HumanRequiredException($"Unable to create a conflict-free merge tree for {baseBranch} and {featureBranch}.");
+        var commit = await RunAsync(["commit-tree", treeSha, "-p", baseSha, "-p", await RevParseAsync(featureBranch, ct)], ct, standardInput: message + Environment.NewLine);
+        return commit.StandardOutput.Trim();
+    }
+    private async Task<ProcessResult> RunAsync(IReadOnlyList<string> args, CancellationToken ct, bool acceptFailure = false, string? standardInput = null) { if (args.Any(x => x is "--force" or "--force-with-lease" or "--hard" or "clean" or "rebase" or "stash" or "-D" or "--amend")) throw new InvalidOperationException("Prohibited Git operation requested."); var r = await processes.RunAsync(new ProcessSpec("git", args, repository, standardInput, Timeout: TimeSpan.FromMinutes(5)), ct); if (!acceptFailure && !r.Succeeded) throw new HumanRequiredException($"git {string.Join(' ', args)} failed: {r.StandardError.Trim()}"); return r; }
     private async Task<GitWorkflowResult> HumanAsync(string id, GitLifecycleMetadata m, string summary, CancellationToken ct)
     {
         var result = new GitWorkflowResult(false, GitLifecycleState.HumanRequired, summary, m with { GitLifecycleState = GitLifecycleState.HumanRequired });

@@ -17,6 +17,7 @@ public sealed class MilestoneDefinition
     public required string Id { get; init; }
     public required string Title { get; init; }
     public string? Branch { get; init; }
+    public string? BaseBranch { get; init; }
     public string? Status { get; init; }
     public MilestoneExecutionKind ExecutionKind { get; init; } = MilestoneExecutionKind.Normal;
     public List<RoadmapTaskDefinition> Tasks { get; init; } = [];

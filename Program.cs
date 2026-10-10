@@ -184,7 +184,7 @@ if (args[0] == "milestone")
         definition.Id,
         definition.Title,
         definition.Branch ?? $"feature/{definition.Id.ToLowerInvariant()}",
-        options.Project.IsOnlineOsCompatibilityProfile ? "developer" : "main");
+        definition.BaseBranch ?? (options.Project.IsOnlineOsCompatibilityProfile ? "developer" : "main"));
     if (args[1].Equals("finalize", StringComparison.OrdinalIgnoreCase))
     {
         var runtime = await stateStore.LoadAsync();

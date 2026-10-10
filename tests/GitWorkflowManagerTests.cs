@@ -39,6 +39,52 @@ public sealed class GitWorkflowManagerTests
     }
 
     [Fact]
+    public async Task PrepareUsesDeveloperRefWhenDeveloperIsOccupiedByAnotherWorktree()
+    {
+        await using var repo = await TempRepository.CreateAsync();
+        await repo.Git("switch", "-c", "feature/current");
+        var holder = await repo.CreateWorktreeAsync("developer-holder", "developer");
+
+        var result = await repo.Manager().PrepareMilestoneAsync(repo.Milestone("M2", "feature/m2"));
+
+        Assert.True(result.Succeeded, result.Summary);
+        Assert.Equal("feature/m2", await repo.Git("branch", "--show-current"));
+        Assert.Equal(await repo.Git("rev-parse", "origin/developer"), result.Metadata.BaseCommit);
+        Assert.Equal("developer", await repo.GitAt(holder, "branch", "--show-current"));
+        await repo.RemoveWorktreeAsync(holder);
+    }
+
+    [Fact]
+    public async Task OccupiedFeatureBranchRequiresHumanWithoutChangingCurrentBranch()
+    {
+        await using var repo = await TempRepository.CreateAsync();
+        await repo.Git("switch", "-c", "feature/current");
+        var holder = await repo.CreateWorktreeAsync("feature-holder", "-b", "feature/m2");
+
+        var result = await repo.Manager().PrepareMilestoneAsync(repo.Milestone("M2", "feature/m2"));
+
+        Assert.Equal(GitLifecycleState.HumanRequired, result.State);
+        Assert.Equal("feature/current", await repo.Git("branch", "--show-current"));
+        Assert.Equal("feature/m2", await repo.GitAt(holder, "branch", "--show-current"));
+        await repo.RemoveWorktreeAsync(holder);
+    }
+
+    [Fact]
+    public async Task LifecycleMetadataSurvivesManagerRestartWithoutBranchMutation()
+    {
+        await using var repo = await TempRepository.CreateAsync();
+        var first = await repo.Manager().PrepareMilestoneAsync(repo.Milestone("M2", "feature/m2"));
+        var branch = await repo.Git("branch", "--show-current");
+
+        var restarted = await new GitWorkflowManager(new ProcessRunner(), repo.RepoPath, new GitOptions()).LoadAsync("M2");
+
+        Assert.True(first.Succeeded);
+        Assert.Equal(first.Metadata, restarted);
+        Assert.Equal(branch, await repo.Git("branch", "--show-current"));
+        Assert.Equal("developer", await repo.Git("rev-parse", "--abbrev-ref", "developer"));
+    }
+
+    [Fact]
     public async Task FinalizePushesFeatureMergesAndValidatesDeveloper()
     {
         await using var repo = await TempRepository.CreateAsync();
@@ -79,18 +125,19 @@ public sealed class GitWorkflowManagerTests
     private sealed class TempRepository : IAsyncDisposable
     {
         private readonly string path;
+        public string RepoPath => path;
         public List<string> Commands { get; } = [];
         private TempRepository(string path) => this.path = path;
         public static async Task<TempRepository> CreateAsync()
         {
-            var root = Path.Combine(Path.GetTempPath(), "onlineos-git-" + Guid.NewGuid().ToString("N"));
+            var root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "onlineos-git-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             var repo = new TempRepository(root);
             await repo.Git("init", "--initial-branch=developer");
             await repo.Git("config", "user.email", "tests@example.invalid");
             await repo.Git("config", "user.name", "Tests");
             await repo.WriteAsync("README.md", "base");
-            foreach (var directory in new[] { "app", "tools/ai-orchestrator", "ai", "architecture", "docs" }) Directory.CreateDirectory(Path.Combine(root, directory));
+            foreach (var directory in new[] { "app", "tools/ai-orchestrator", "ai", "architecture", "docs" }) Directory.CreateDirectory(System.IO.Path.Combine(root, directory));
             await repo.CommitAsync("base");
             var bare = root + "-origin.git";
             Directory.CreateDirectory(bare);
@@ -102,6 +149,14 @@ public sealed class GitWorkflowManagerTests
         public MilestoneDefinition Milestone(string id, string branch, string baseBranch = "developer") => new(id, id, branch, baseBranch);
         public GitWorkflowManager Manager(IValidationRunner? validation = null) => new(new RecordingRunner(this), path, new GitOptions(), validation);
         public async Task<string> Git(params string[] args) { var result = await RunGit(path, args); Commands.Add(result.Command); return result.StandardOutput.Trim(); }
+        public async Task<string> GitAt(string cwd, params string[] args) => (await RunGit(cwd, args)).StandardOutput.Trim();
+        public async Task<string> CreateWorktreeAsync(string name, params string[] args)
+        {
+            var worktree = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "onlineos-git-worktree-" + Guid.NewGuid().ToString("N"));
+            await Git(["worktree", "add", worktree, .. args]);
+            return worktree;
+        }
+        public Task RemoveWorktreeAsync(string worktree) => Git("worktree", "remove", worktree);
         public Task WriteAsync(string relative, string content) { var file = Path.Combine(path, relative); Directory.CreateDirectory(Path.GetDirectoryName(file)!); return File.WriteAllTextAsync(file, content); }
         public Task CommitAsync(string message) => Git("add", "--all").ContinueWith(_ => Git("commit", "-m", message)).Unwrap();
         public async Task CleanUntrackedAsync() { foreach (var file in Directory.GetFiles(path, "unowned.txt")) File.Delete(file); }

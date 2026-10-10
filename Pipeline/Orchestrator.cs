@@ -255,6 +255,20 @@ public sealed class Orchestrator(
         if (failure is not null && !IsTransientProviderFailure(failure.Stage, failure.Category)
             && !(failure.Stage == WorkflowState.Remediating && failure.Category == FailureCategory.ContextOverflow)) failure = null;
         if (run.LastFailure is null && failure is not null) run.LastFailure = failure;
+        var providerAuthenticationFailure = failure is { Category: FailureCategory.ExternalAuthorizationRequired }
+            || (failure?.Category == FailureCategory.UnknownFailure
+                && $"{failure.StandardOutput} {failure.StandardError}".Contains("oauth session expired", StringComparison.OrdinalIgnoreCase));
+        if (providerAuthenticationFailure)
+        {
+            stateMachine.ReopenForGenericRecovery(run,
+                "Human-authorized recovery: provider authentication was renewed; retry Claude implementation without resetting task state.");
+            run.EndedAt = null;
+            run.FinalDecision = null;
+            run.ActiveRecovery = null;
+            run.ResumeAfter = null;
+            await runs.SaveAsync(run, ct);
+            return (await ExecutePersistedRunAsync(run, false, ct, true)).Run;
+        }
         var reviewFailure = failure is { Category: FailureCategory.ReviewFailure, Stage: WorkflowState.Reviewing };
         var transientProvider = failure is not null && IsTransientProviderFailure(failure.Stage, failure.Category);
         var contextOverflow = failure is { Category: FailureCategory.ContextOverflow, Stage: WorkflowState.Remediating };

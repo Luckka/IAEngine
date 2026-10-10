@@ -16,6 +16,9 @@ public static class FailureClassifier
         if (structuredRefusal || failureCode?.Contains("REFUS", StringComparison.OrdinalIgnoreCase) == true) return FailureCategory.ProviderStructuredRefusal;
         if (process?.ProviderHttpStatus == 429 || Regex.IsMatch(text, "rate limit|usage limit|session limit|http\\s*429|retry[- ]after|resets? at", RegexOptions.IgnoreCase)) return FailureCategory.ProviderRateLimit;
         if (process?.TimedOut == true || text.Contains("timeout", StringComparison.OrdinalIgnoreCase)) return FailureCategory.ProviderTimeout;
+        if (text.Contains("failed to authenticate", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("oauth session expired", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("could not be refreshed", StringComparison.OrdinalIgnoreCase)) return FailureCategory.ExternalAuthorizationRequired;
         if (process is not null && !process.Succeeded && IsUnavailable(text)) return Provider(stage, text);
         if (stage == WorkflowState.Reviewing && process is not null && !process.Succeeded) return FailureCategory.CodexUnavailable;
         if (validation?.Any(x => x.Required && !x.Passed) == true)
